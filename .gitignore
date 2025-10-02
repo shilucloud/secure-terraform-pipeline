@@ -1,0 +1,68 @@
+```
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.*
+*.tfstate.backup
+*.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible
+*.retry
+*.log
+inventory/*.ini
+host_vars/*.yml
+group_vars/*.yml
+vault_pass.txt
+
+# Docker
+*.pid
+*.seed
+*.bak
+docker-compose.override.yml
+.docker/
+docker-data/
+
+# Kubernetes
+*.yaml~
+*.yml~
+.kube/
+helmfile.lock
+charts/*.tgz
+
+# Python (if scripts/tools are included)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.venv/
+env/
+
+# Logs
+*.log
+logs/
+tmp/
+*.out
+
+# Local environment
+.env
+.env.*
+*.local
+secrets.yml
+secrets.json
+```

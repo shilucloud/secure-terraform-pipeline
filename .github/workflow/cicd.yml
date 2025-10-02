@@ -1,0 +1,131 @@
+name: Terraform CI/CD
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: true
+      TF_CLI_ARGS: "-no-color"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Cache terraform plugins & modules for speed
+      - name: Cache Terraform
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            .terraform
+          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}
+
+      # Setup Nix (ensures reproducible dev environment)
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
+      - name: Enter Nix shell
+        run: nix-shell --command "terraform --version"
+
+      # Terraform formatting check
+      - name: Terraform Fmt
+        run: terraform fmt -check -recursive
+
+      # Init Terraform
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=my-tfstate-bucket" -backend-config="key=global/terraform.tfstate"
+
+      # Validate Terraform configs
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Run security scanning (Checkov)
+      - name: Run Checkov
+        run: checkov -d ./terraform -o json > checkov-report.json
+
+      # Run OPA/Conftest policies
+      - name: Conftest Policy Check
+        run: terraform show -json | conftest test --output=json > conftest-report.json
+
+      # Run Terratest against LocalStack
+      - name: Run Terratest
+        run: go test ./test -v -timeout 30m | tee terratest-results.txt
+
+      # Terraform Plan
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan | tee terraform-plan.txt
+
+      # Upload results as artifacts
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            checkov-report.json
+            conftest-report.json
+            terratest-results.txt
+            terraform-plan.txt
+            tfplan
+
+      # Summarize results in PR
+      - name: PR Comment with Results
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: terraform-summary
+          message: |
+            ## ✅ Terraform Validation Summary
+
+            - **Terraform Fmt/Validate:** Passed  
+            - **Checkov Security Scan:** See artifact (`checkov-report.json`)  
+            - **OPA/Conftest Policies:** See artifact (`conftest-report.json`)  
+            - **Terratest Results:** See artifact (`terratest-results.txt`)  
+            - **Terraform Plan:** Uploaded (`terraform-plan.txt`)  
+
+            :warning: Please review reports before merging.
+
+  # Apply job only runs after approval
+  apply:
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://mycompany-infra.example
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download plan and reports
+        uses: actions/download-artifact@v4
+        with:
+          name: reports
+          path: ./reports
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=my-tfstate-bucket" -backend-config="key=global/terraform.tfstate"
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve ./reports/tfplan
+
+      # Upload final apply logs
+      - name: Upload Apply Logs
+        run: echo "Terraform apply completed at $(date)" > apply-log.txt
+      - name: Store Apply Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: apply-logs
+          path: apply-log.txt

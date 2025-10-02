@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  localstack:
+    image: localstack/localstack-pro:latest
+    container_name: localstack-pro
+    ports:
+      - "4566:4566"        # Edge port (all AWS services)
+      - "4510-4559:4510-4559" # Service ports (optional)
+    environment:
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN} # Put your Pro auth token in .env
+      - SERVICES=s3,sts
+      - DEBUG=1
+      - DATA_DIR=/var/lib/localstack/data # persist data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "./localstack-data:/var/lib/localstack/data"   # persist service state
+      - "/var/run/docker.sock:/var/run/docker.sock"    # required for Lambda/docker-in-docker
+
