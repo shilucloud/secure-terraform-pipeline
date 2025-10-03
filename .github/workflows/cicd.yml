@@ -10,9 +10,6 @@ on:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: nix-shell shell.nix --pure --command bash
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
@@ -36,31 +33,31 @@ jobs:
 
       # Terraform formatting check
       - name: Terraform Fmt
-        run: terraform fmt -check -recursive
+        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
 
       # Init Terraform
       - name: Terraform Init
-        run: terraform init -backend-config="bucket=my-tfstate-bucket" -backend-config="key=global/terraform.tfstate"
+        run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=my-tfstate-bucket' -backend-config='key=global/terraform.tfstate'"
 
       # Validate Terraform configs
       - name: Terraform Validate
-        run: terraform validate
+        run: nix-shell shell.nix --pure --run "terraform validate"
 
       # Security scanning (Checkov)
       - name: Run Checkov
-        run: checkov -d ./terraform -o json > checkov-report.json
+        run: nix-shell shell.nix --pure --run "checkov -d ./terraform -o json > checkov-report.json"
 
       # Policy checks (Conftest)
       - name: Conftest Policy Check
-        run: terraform show -json | conftest test --output=json > conftest-report.json
+        run: nix-shell shell.nix --pure --run "terraform show -json | conftest test --output=json > conftest-report.json"
 
       # Terratest
       - name: Run Terratest
-        run: go test ./test -v -timeout 30m | tee terratest-results.txt
+        run: nix-shell shell.nix --pure --run "go test ./test -v -timeout 30m | tee terratest-results.txt"
 
       # Terraform Plan
       - name: Terraform Plan
-        run: terraform plan -out=tfplan | tee terraform-plan.txt
+        run: nix-shell shell.nix --pure --run "terraform plan -out=tfplan | tee terraform-plan.txt"
 
       # Upload reports
       - name: Upload Reports
@@ -100,10 +97,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
-    defaults:
-      run:
-        shell: nix-shell shell.nix --pure --command bash
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
@@ -122,13 +115,14 @@ jobs:
         uses: cachix/install-nix-action@v22
 
       - name: Terraform Init
-        run: terraform init -backend-config="bucket=my-tfstate-bucket" -backend-config="key=global/terraform.tfstate"
+        run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=my-tfstate-bucket' -backend-config='key=global/terraform.tfstate'"
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve ./reports/tfplan
+        run: nix-shell shell.nix --pure --run "terraform apply -auto-approve ./reports/tfplan"
 
       - name: Upload Apply Logs
-        uses: actions/upload-artifact@v4
+        run: nix-shell shell.nix --pure --run "echo 'Apply finished' > apply-log.txt"
+      - uses: actions/upload-artifact@v4
         with:
           name: apply-logs
           path: apply-log.txt
