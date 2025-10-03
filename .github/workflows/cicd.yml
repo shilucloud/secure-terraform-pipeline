@@ -8,62 +8,65 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # --- Static Checks (parallelized) ---
-  lint_validate:
+  terraform_pipeline:
     runs-on: ubuntu-latest
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
       TF_CLI_ARGS: "-no-color"
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-
-      - name: Terraform Fmt
-        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
-
-      - name: Terraform Validate
-        run: nix-shell shell.nix --pure --run "terraform validate"
-  
-  terraform_plan:
-    runs-on: ubuntu-latest
-    needs: [lint_validate]
-    env:
-      IS_CI: true
-      TF_IN_AUTOMATION: true
-      TF_CLI_ARGS: "-no-color"
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
       LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-
-      - name: Cache Terraform
+      # Cache Terraform & Go modules
+      - name: Cache Terraform & Go
         uses: actions/cache@v4
         with:
           path: |
             ~/.terraform.d/plugin-cache
             .terraform
-          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}
+            ~/go/pkg/mod
+          key: terraform-go-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            terraform-go-${{ runner.os }}-
 
-      - name: Setup Provider file for LocalStack
+      # Setup Nix once
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
+      # Terraform Fmt & Validate
+      - name: Terraform Lint & Validate
+        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive && terraform validate"
+
+      # Setup Provider for LocalStack
+      - name: Setup LocalStack Provider
+        run: cat providers/localstack-provider.tf >> provider.tf
+
+      # Start LocalStack (single instance for all steps)
+      - name: Start LocalStack
+        run: docker compose -f localstack/localstack-compose.yml up -d
+
+      # Wait for LocalStack readiness
+      - name: Wait for LocalStack
         run: |
-          cat providers/localstack-provider.tf >> provider.tf 
+          until curl -s http://localhost:4566/health | grep '"s3": "running"'; do
+            echo "Waiting for LocalStack..."
+            sleep 2
+          done
 
-      - name: Starting LocalStack 
-        run: |
-          docker compose -f localstack/localstack-compose.yml up -d
-
+      # Terraform Init & Plan
       - name: Terraform Init
         run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=${{ secrets.TFSTATE_BUCKET }}' -backend-config='key=global/terraform.tfstate' -backend-config='dynamodb_table=${{ secrets.TFSTATE_LOCK_TABLE }}'"
 
       - name: Terraform Plan
         run: nix-shell shell.nix --pure --run "terraform plan -out=tfplan | tee terraform-plan.txt"
 
-      - name: Upload Plan
+      - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
@@ -71,29 +74,9 @@ jobs:
             tfplan
             terraform-plan.txt
 
-
-  security_scan:
-    runs-on: ubuntu-latest
-    needs: [terraform_plan]
-    env:
-      IS_CI: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-
-      - name: Download tfplan
-        uses: actions/download-artifact@v4 
-        with:
-          name: tfplan-artifact
-          path: .
-
-      - name: Run Checkov
-        run: nix-shell shell.nix --pure --run "checkov -d ./infrastructure -o json > checkov-report.json"
-
-      - name: Conftest Policy Check
-        run: nix-shell shell.nix --pure --run "terraform show -json | conftest test --output=json > conftest-report.json"
+      # Security scans
+      - name: Run Security Scans
+        run: nix-shell shell.nix --pure --run "checkov -d ./terraform -o json > checkov-report.json && terraform show -json | conftest test --output=json > conftest-report.json"
 
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
@@ -103,33 +86,7 @@ jobs:
             checkov-report.json
             conftest-report.json
 
-  terratest:
-    runs-on: ubuntu-latest
-    needs: [security_scan]
-    env:
-      IS_CI: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-
-      - name: Setup Provider file for LocalStack
-        run: |
-          cat providers/localstack-provider.tf >> provider.tf 
-
-      - name: Starting LocalStack 
-        run: |
-          docker compose -f localstack/localstack-compose.yml up -d
-
+      # Terratest
       - name: Run Terratest
         run: nix-shell shell.nix --pure --run "go test ./test -v -timeout 30m | tee terratest-results.txt"
 
@@ -139,10 +96,7 @@ jobs:
           name: terratest-results
           path: terratest-results.txt
 
-  creating_pr:
-    runs-on: ubuntu-latest
-    needs: [security_scan, terratest]
-    steps:
+      # PR comment
       - name: PR Comment with Summary
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
@@ -158,5 +112,3 @@ jobs:
             - **Terraform Plan:** Uploaded (`terraform-plan.txt`)  
 
             ⚠️ Please review reports before merging.
-
-  
