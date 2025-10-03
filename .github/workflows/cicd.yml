@@ -39,13 +39,13 @@ jobs:
 
       - name: Setup Provider.tf 
         run: |
-          cat > provider.tf <<EOF
+          cat > infrastructure/provider.tf <<EOF
           provider "aws" {
             region = var.aws_region
           EOF
 
           if [ "$LOCALSTACK_ENABLED" = "true" ]; then
-            cat >> provider.tf <<'EOP'
+            cat >> infrastructure/provider.tf <<'EOP'
             access_key                  = "test"
             secret_key                  = "test"
             s3_force_path_style         = true
@@ -57,7 +57,7 @@ jobs:
             }
           EOP
           fi
-          echo "}" >> provider.tf
+          echo "}" >> infrastructure/provider.tf
 
       # Terraform Fmt & Validate
       - name: Terraform Lint & Validate
