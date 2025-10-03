@@ -16,9 +16,7 @@ jobs:
       TF_CLI_ARGS: "-no-color"
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
       LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      AWS_DEFAULT_REGION: us-east-1
+      LOCALSTACK_ENABLED: true 
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +36,28 @@ jobs:
       # Setup Nix once
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
+
+      - name: Setup Provider.tf 
+        run: |
+          cat > provider.tf <<EOF
+          provider "aws" {
+            region = var.aws_region
+          EOF
+
+          if [ "$LOCALSTACK_ENABLED" = "true" ]; then
+            cat >> provider.tf <<'EOP'
+            access_key                  = "test"
+            secret_key                  = "test"
+            s3_force_path_style         = true
+            skip_credentials_validation = true
+            skip_requesting_account_id  = true
+            endpoints = {
+              s3 = "http://localhost:4566"
+              sts = "http://localhost:4566"
+            }
+          EOP
+          fi
+          echo "}" >> provider.tf
 
       # Terraform Fmt & Validate
       - name: Terraform Lint & Validate
