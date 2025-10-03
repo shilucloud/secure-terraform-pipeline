@@ -21,8 +21,6 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
-      - name: 
-
       - name: Terraform Fmt
         run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
 
