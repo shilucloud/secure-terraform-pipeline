@@ -8,17 +8,41 @@ on:
     branches: [ "main" ]
 
 jobs:
-  terraform:
+  # --- Static Checks (parallelized) ---
+  lint_validate:
     runs-on: ubuntu-latest
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
       TF_CLI_ARGS: "-no-color"
-
     steps:
       - uses: actions/checkout@v4
 
-      # Cache Terraform plugins & modules for speed
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
+      - name: 
+
+      - name: Terraform Fmt
+        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
+
+      - name: Terraform Validate
+        run: nix-shell shell.nix --pure --run "terraform validate"
+  
+  terraform_plan:
+    runs-on: ubuntu-latest
+    needs: [lint_validate]
+    env:
+      IS_CI: true
+      TF_IN_AUTOMATION: true
+      TF_CLI_ARGS: "-no-color"
+      LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
       - name: Cache Terraform
         uses: actions/cache@v4
         with:
@@ -27,52 +51,101 @@ jobs:
             .terraform
           key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}
 
-      # Install Nix (required for nix-shell)
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
+      - name: Setup Provider file for LocalStack
+        run: |
+          cat providers/localstack-provider.tf >> provider.tf 
 
-      # Terraform formatting check
-      - name: Terraform Fmt
-        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
+      - name: Starting LocalStack 
+        run: |
+          docker compose -f localstack/localstack-compose.yml up -d
 
-      # Init Terraform
       - name: Terraform Init
-        run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=my-tfstate-bucket' -backend-config='key=global/terraform.tfstate'"
+        run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=${{ secrets.TFSTATE_BUCKET }}' -backend-config='key=global/terraform.tfstate' -backend-config='dynamodb_table=${{ secrets.TFSTATE_LOCK_TABLE }}'"
 
-      # Validate Terraform configs
-      - name: Terraform Validate
-        run: nix-shell shell.nix --pure --run "terraform validate"
-
-      # Security scanning (Checkov)
-      - name: Run Checkov
-        run: nix-shell shell.nix --pure --run "checkov -d ./terraform -o json > checkov-report.json"
-
-      # Policy checks (Conftest)
-      - name: Conftest Policy Check
-        run: nix-shell shell.nix --pure --run "terraform show -json | conftest test --output=json > conftest-report.json"
-
-      # Terratest
-      - name: Run Terratest
-        run: nix-shell shell.nix --pure --run "go test ./test -v -timeout 30m | tee terratest-results.txt"
-
-      # Terraform Plan
       - name: Terraform Plan
         run: nix-shell shell.nix --pure --run "terraform plan -out=tfplan | tee terraform-plan.txt"
 
-      # Upload reports
-      - name: Upload Reports
+      - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: reports
+          name: terraform-plan
+          path: |
+            tfplan
+            terraform-plan.txt
+
+
+  security_scan:
+    runs-on: ubuntu-latest
+    needs: [terraform_plan]
+    env:
+      IS_CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
+      - name: Download tfplan
+        uses: actions/download-artifact@v4 
+        with:
+          name: tfplan-artifact
+          path: .
+
+      - name: Run Checkov
+        run: nix-shell shell.nix --pure --run "checkov -d ./infrastructure -o json > checkov-report.json"
+
+      - name: Conftest Policy Check
+        run: nix-shell shell.nix --pure --run "terraform show -json | conftest test --output=json > conftest-report.json"
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
           path: |
             checkov-report.json
             conftest-report.json
-            terratest-results.txt
-            terraform-plan.txt
-            tfplan
 
-      # PR comment
-      - name: PR Comment with Results
+  terratest:
+    runs-on: ubuntu-latest
+    needs: [security_scan]
+    env:
+      IS_CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v22
+
+      - name: Setup Provider file for LocalStack
+        run: |
+          cat providers/localstack-provider.tf >> provider.tf 
+
+      - name: Starting LocalStack 
+        run: |
+          docker compose -f localstack/localstack-compose.yml up -d
+
+      - name: Run Terratest
+        run: nix-shell shell.nix --pure --run "go test ./test -v -timeout 30m | tee terratest-results.txt"
+
+      - name: Upload Terratest Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: terratest-results
+          path: terratest-results.txt
+
+  creating_pr:
+    runs-on: ubuntu-latest
+    needs: [security_scan, terratest]
+    steps:
+      - name: PR Comment with Summary
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -80,49 +153,12 @@ jobs:
           message: |
             ## ✅ Terraform Validation Summary
 
-            - **Terraform Fmt/Validate:** Passed  
+            - **Lint & Validate:** Passed  
             - **Checkov Security Scan:** See artifact (`checkov-report.json`)  
             - **OPA/Conftest Policies:** See artifact (`conftest-report.json`)  
             - **Terratest Results:** See artifact (`terratest-results.txt`)  
             - **Terraform Plan:** Uploaded (`terraform-plan.txt`)  
 
-            :warning: Please review reports before merging.
+            ⚠️ Please review reports before merging.
 
-  apply:
-    needs: terraform
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://mycompany-infra.example
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      IS_CI: true
-      TF_IN_AUTOMATION: true
-      TF_CLI_ARGS: "-no-color"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download plan and reports
-        uses: actions/download-artifact@v4
-        with:
-          name: reports
-          path: ./reports
-
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-
-      - name: Terraform Init
-        run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=my-tfstate-bucket' -backend-config='key=global/terraform.tfstate'"
-
-      - name: Terraform Apply
-        run: nix-shell shell.nix --pure --run "terraform apply -auto-approve ./reports/tfplan"
-
-      - name: Upload Apply Logs
-        run: nix-shell shell.nix --pure --run "echo 'Apply finished' > apply-log.txt"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: apply-logs
-          path: apply-log.txt
+  

@@ -29,15 +29,17 @@ pkgs.mkShell {
     ];
 
   shellHook = ''
-    echo "======================================"
-    echo "Pinned nixpkgs dev shell loaded!"
-    export APP_ENV=development
+  export IS_CI="${if isCI then "true" else "false"}"
+  
+  echo "======================================"
+  echo "Pinned nixpkgs dev shell loaded!"
+  export APP_ENV=development
 
-    if [ "$IS_CI" = "true" ]; then
-      echo "Running in CI mode (only go, checkov, conftest, terraform included)"
-    else
-      echo "Running locally (all dev tools included)"
-    fi
+  if [ "$IS_CI" = "true" ]; then
+    echo "Running in CI mode (only go, checkov, conftest, terraform included)"
+  else
+    echo "Running locally (all dev tools included)"
+  fi
 
     echo "======================================"
     echo "Checking tool versions..."
