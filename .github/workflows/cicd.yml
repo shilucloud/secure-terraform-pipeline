@@ -10,15 +10,18 @@ on:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: nix-shell shell.nix --pure --command bash
     env:
+      IS_CI: true
       TF_IN_AUTOMATION: true
       TF_CLI_ARGS: "-no-color"
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Cache terraform plugins & modules for speed
+      # Cache Terraform plugins & modules for speed
       - name: Cache Terraform
         uses: actions/cache@v4
         with:
@@ -27,12 +30,9 @@ jobs:
             .terraform
           key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}
 
-      # Setup Nix (ensures reproducible dev environment)
+      # Install Nix (required for nix-shell)
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
-
-      - name: Enter Nix shell
-        run: nix-shell --command "terraform --version"
 
       # Terraform formatting check
       - name: Terraform Fmt
@@ -46,15 +46,15 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # Run security scanning (Checkov)
+      # Security scanning (Checkov)
       - name: Run Checkov
         run: checkov -d ./terraform -o json > checkov-report.json
 
-      # Run OPA/Conftest policies
+      # Policy checks (Conftest)
       - name: Conftest Policy Check
         run: terraform show -json | conftest test --output=json > conftest-report.json
 
-      # Run Terratest against LocalStack
+      # Terratest
       - name: Run Terratest
         run: go test ./test -v -timeout 30m | tee terratest-results.txt
 
@@ -62,7 +62,7 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan | tee terraform-plan.txt
 
-      # Upload results as artifacts
+      # Upload reports
       - name: Upload Reports
         uses: actions/upload-artifact@v4
         with:
@@ -74,7 +74,7 @@ jobs:
             terraform-plan.txt
             tfplan
 
-      # Summarize results in PR
+      # PR comment
       - name: PR Comment with Results
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
@@ -91,7 +91,6 @@ jobs:
 
             :warning: Please review reports before merging.
 
-  # Apply job only runs after approval
   apply:
     needs: terraform
     runs-on: ubuntu-latest
@@ -102,9 +101,16 @@ jobs:
       contents: read
       id-token: write
 
+    defaults:
+      run:
+        shell: nix-shell shell.nix --pure --command bash
+    env:
+      IS_CI: true
+      TF_IN_AUTOMATION: true
+      TF_CLI_ARGS: "-no-color"
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Download plan and reports
         uses: actions/download-artifact@v4
@@ -121,10 +127,7 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve ./reports/tfplan
 
-      # Upload final apply logs
       - name: Upload Apply Logs
-        run: echo "Terraform apply completed at $(date)" > apply-log.txt
-      - name: Store Apply Logs
         uses: actions/upload-artifact@v4
         with:
           name: apply-logs
