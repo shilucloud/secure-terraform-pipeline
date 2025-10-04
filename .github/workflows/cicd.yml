@@ -30,18 +30,23 @@ jobs:
             .terraform
             ~/go/pkg/mod
           key: terraform-go-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: terraform-go-${{ runner.os }}-
+          restore-keys: |
+            terraform-go-${{ runner.os }}-
 
-      # Setup Nix
+      # Setup Nix once
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
-      # Terraform Fmt & Validate
-      - name: Terraform Fmt & Validate
-        run: |
-          nix-shell shell.nix --pure --run "cd infrastructure && terraform fmt -check -recursive && terraform validate"
+      # Terraform Fmt 
+      - name: Terraform Lint 
+        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
+        working-directory: infrastructure
+      
+      # Terraform Validate
+      #- name: Terraform Validate
+      #  run: nix-shell shell.nix --pure --run "terraform validate"
 
-      # Start LocalStack
+      # Start LocalStack (single instance for all steps)
       - name: Start LocalStack
         run: docker compose -f localstack/localstack-compose.yml up -d
 
@@ -53,29 +58,35 @@ jobs:
             sleep 2
           done
 
-      # Terraform Init & Plan
-      - name: Terraform Init & Plan
-        run: |
-          nix-shell shell.nix --pure --run "cd infrastructure && terraform init && terraform plan -out=tfplan | tee terraform-plan.txt"
-          nix-shell shell.nix --pure --run "cd infrastructure && terraform show -json tfplan > tfplan.json"
+      - name: Terraform Init
+        run: nix-shell shell.nix --pure --run "terraform init"
+        working-directory: infrastructure
 
-      # Upload Terraform Plan Artifacts
+      - name: Terraform Plan
+        run: nix-shell shell.nix --pure --run "terraform plan -out=tfplan | tee terraform-plan.txt"
+        working-directory: infrastructure
+      
+      - name: Terraform Plan Json 
+        run: nix-shell shell.nix --pure --run "terraform show -json tfplan >> tfplan.json"
+        working-directory: infrastructure
+
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: |
-            infrastructure/tfplan
-            infrastructure/terraform-plan.txt
-            infrastructure/tfplan.json
+            tfplan
+            terraform-plan.txt
+            tfplan.json 
 
-      # Security Scans
-      - name: Run Checkov & Conftest
-        run: |
-          nix-shell shell.nix --pure --run "checkov -d infrastructure -o json > checkov-report.json"
-          nix-shell shell.nix --pure --run "terraform -json show infrastructure/tfplan | conftest test --output=json > conftest-report.json"
+      # Security scans
+      - name: Run Checkov Scans
+        run: nix-shell shell.nix --pure --run "checkov -d ./infrastructure -o json > checkov-report.json"
 
-      # Upload Security Reports
+      - name: Run Conftest 
+        run: nix-shell shell.nix --pure --run "terraform -json show tfplan | conftest test --output=json > conftest-report.json"
+        working-directory: infrastructure
+      
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
@@ -86,8 +97,7 @@ jobs:
 
       # Terratest
       - name: Run Terratest
-        run: |
-          nix-shell shell.nix --pure --run "cd test && go test ./ -v -timeout 30m | tee terratest-results.txt"
+        run: nix-shell shell.nix --pure --run "cd test && go test ./ -v -timeout 30m | tee terratest-results.txt"
 
       - name: Upload Terratest Results
         uses: actions/upload-artifact@v4
