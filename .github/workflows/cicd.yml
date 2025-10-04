@@ -19,9 +19,7 @@ jobs:
           SERVICES: s3
           DEBUG: 1 
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
-        options: > 
-          --health-cmd="curl --silent --fail http://localhost:4566/_localstack/health | grep '\"s3\": \"running\"'"
-          --health-interval=5s --health-timeout=10s --health-retries=10
+        
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
