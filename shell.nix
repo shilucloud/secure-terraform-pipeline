@@ -15,7 +15,7 @@ pkgs.mkShell {
   pure = true;
 
   buildInputs = if isCI then
-    [ pkgs.go pkgs.checkov pkgs.conftest pkgs.terraform ]
+    [ pkgs.go pkgs.checkov pkgs.conftest pkgs.terraform pkgs.sops pkgs.age ]
   else
     [
       pkgs.git
@@ -26,6 +26,8 @@ pkgs.mkShell {
       pkgs.docker_28
       pkgs.terraform
       pkgs.act
+      pkgs.age
+      pkgs.sops
     ];
 
   shellHook = ''

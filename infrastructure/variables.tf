@@ -26,3 +26,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "localstack_enabled" {
+  description = "To have a dynamic cicd for localstack and aws"
+  type = bool
+  default = false 
+}

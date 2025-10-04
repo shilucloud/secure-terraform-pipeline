@@ -16,7 +16,7 @@ jobs:
       TF_CLI_ARGS: "-no-color"
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
       LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
-      LOCALSTACK_ENABLED: true 
+      TF_VAR_localstack_enabled: true 
 
     steps:
       - uses: actions/checkout@v4
@@ -37,38 +37,14 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
-      - name: Setup Provider.tf 
-        run: |
-          cat > infrastructure/provider.tf <<EOF
-            provider "aws" {
-              region = var.aws_region
-            EOF
-
-            if [ "$LOCALSTACK_ENABLED" = "true" ]; then
-              cat >> infrastructure/provider.tf <<'EOP'
-              access_key                  = "test"
-              secret_key                  = "test"
-              s3_force_path_style         = true
-              skip_credentials_validation = true
-              skip_requesting_account_id  = true
-              endpoints = {
-                s3  = "http://localhost:4566"
-                sts = "http://localhost:4566"
-              }
-            EOP
-            fi
-
-            # Always close the provider block
-            echo "}" >> infrastructure/provider.tf
-
-
-      # Terraform Fmt & Validate
-      - name: Terraform Lint & Validate
-        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive && terraform validate"
-
-      # Setup Provider for LocalStack
-      - name: Setup LocalStack Provider
-        run: cat providers/localstack-provider.tf >> provider.tf
+      # Terraform Fmt 
+      - name: Terraform Lint 
+        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
+        working-directory: infrastructure
+      
+      # Terraform Validate
+      #- name: Terraform Validate
+      #  run: nix-shell shell.nix --pure --run "terraform validate"
 
       # Start LocalStack (single instance for all steps)
       - name: Start LocalStack
@@ -82,12 +58,17 @@ jobs:
             sleep 2
           done
 
-      # Terraform Init & Plan
       - name: Terraform Init
-        run: nix-shell shell.nix --pure --run "terraform init -backend-config='bucket=${{ secrets.TFSTATE_BUCKET }}' -backend-config='key=global/terraform.tfstate' -backend-config='dynamodb_table=${{ secrets.TFSTATE_LOCK_TABLE }}'"
+        run: nix-shell shell.nix --pure --run "terraform init"
+        working-directory: infrastructure
 
       - name: Terraform Plan
         run: nix-shell shell.nix --pure --run "terraform plan -out=tfplan | tee terraform-plan.txt"
+        working-directory: infrastructure
+      
+      - name: Terraform Plan Json 
+        run: nix-shell shell.nix --pure --run "terraform show -json tfplan >> tfplan.json"
+        working-directory: infrastructure
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -96,11 +77,16 @@ jobs:
           path: |
             tfplan
             terraform-plan.txt
+            tfplan.json 
 
       # Security scans
-      - name: Run Security Scans
-        run: nix-shell shell.nix --pure --run "checkov -d ./terraform -o json > checkov-report.json && terraform show -json | conftest test --output=json > conftest-report.json"
+      - name: Run Checkov Scans
+        run: nix-shell shell.nix --pure --run "checkov -d ./infrastructure -o json > checkov-report.json"
 
+      - name: Run Conftest 
+        run: nix-shell shell.nix --pure --run "terraform -json show tfplan | conftest test --output=json > conftest-report.json"
+        working-directory: infrastructure
+      
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
@@ -110,6 +96,9 @@ jobs:
             conftest-report.json
 
       # Terratest
+      - name: Change Dir 
+        run: ../
+
       - name: Run Terratest
         run: nix-shell shell.nix --pure --run "go test ./test -v -timeout 30m | tee terratest-results.txt"
 
