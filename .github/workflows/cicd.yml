@@ -59,11 +59,11 @@ jobs:
 
       # Terraform Fmt 
       - name: Terraform Lint 
-        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal fmt -check -recursive"
+        run: nix-shell shell.nix  --run "cd infrastructure && tflocal fmt -check -recursive"
       
       # Terraform Validate
       - name: Terraform Validate
-        run: nix-shell shell.nix --pure --run "tflocal validate"
+        run: nix-shell shell.nix  --run "tflocal validate"
 
       # Start LocalStack (single instance for all steps)
      # - name: Start LocalStack
@@ -78,13 +78,13 @@ jobs:
       #    done
 
       - name: Terraform Init
-        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal init"
+        run: nix-shell shell.nix  --run "cd infrastructure && tflocal init"
 
       - name: Terraform Plan
-        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal plan -out=tfplan | tee terraform-plan.txt"
+        run: nix-shell shell.nix --run "cd infrastructure && tflocal plan -out=tfplan | tee terraform-plan.txt"
       
       - name: Terraform Plan Json 
-        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal show -json tfplan >> tfplan.json"
+        run: nix-shell shell.nix  --run "cd infrastructure && tflocal show -json tfplan >> tfplan.json"
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -97,10 +97,10 @@ jobs:
 
       # Security scans
       - name: Run Checkov Scans
-        run: nix-shell shell.nix --pure --run "checkov -d ./infrastructure -o json > checkov-report.json"
+        run: nix-shell shell.nix --run "checkov -d ./infrastructure -o json > checkov-report.json"
 
       - name: Run Conftest 
-        run: nix-shell shell.nix --pure --run "conftest test infrastructure/tfplan.json --output=json > conftest-report.json"
+        run: nix-shell shell.nix --run "conftest test infrastructure/tfplan.json --output=json > conftest-report.json"
       
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
@@ -112,7 +112,7 @@ jobs:
 
       # Terratest
       - name: Run Terratest
-        run: nix-shell shell.nix --pure --run "cd test && go test ./ -v -timeout 30m | tee terratest-results.txt"
+        run: nix-shell shell.nix --run "cd test && go test ./ -v -timeout 30m | tee terratest-results.txt"
 
       - name: Upload Terratest Results
         uses: actions/upload-artifact@v4
