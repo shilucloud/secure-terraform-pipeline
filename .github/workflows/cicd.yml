@@ -17,6 +17,7 @@ jobs:
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
       LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
       TF_VAR_localstack_enabled: true 
+      AWS_ENDPOINT_URL: "http://localhost:4566"
 
     steps:
       - uses: actions/checkout@v4
@@ -37,13 +38,17 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
+      # configuring Localstack Backend
+      - name: Configure LocalStack Backend
+        run: cp backends/localstack-bakend.tf terraform.tf
+
       # Terraform Fmt 
       - name: Terraform Lint 
-        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform fmt -check -recursive"
+        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal fmt -check -recursive"
       
       # Terraform Validate
-      #- name: Terraform Validate
-      #  run: nix-shell shell.nix --pure --run "terraform validate"
+      - name: Terraform Validate
+        run: nix-shell shell.nix --pure --run "tflocal validate"
 
       # Start LocalStack (single instance for all steps)
       - name: Start LocalStack
@@ -58,13 +63,13 @@ jobs:
           done
 
       - name: Terraform Init
-        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform init"
+        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal init"
 
       - name: Terraform Plan
-        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform plan -out=tfplan | tee terraform-plan.txt"
+        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal plan -out=tfplan | tee terraform-plan.txt"
       
       - name: Terraform Plan Json 
-        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform show -json tfplan >> tfplan.json"
+        run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal show -json tfplan >> tfplan.json"
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
