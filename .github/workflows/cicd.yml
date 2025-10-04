@@ -40,24 +40,27 @@ jobs:
       - name: Setup Provider.tf 
         run: |
           cat > infrastructure/provider.tf <<EOF
-          provider "aws" {
-            region = var.aws_region
-          EOF
+            provider "aws" {
+              region = var.aws_region
+            EOF
 
-          if [ "$LOCALSTACK_ENABLED" = "true" ]; then
-            cat >> infrastructure/provider.tf <<'EOP'
-            access_key                  = "test"
-            secret_key                  = "test"
-            s3_force_path_style         = true
-            skip_credentials_validation = true
-            skip_requesting_account_id  = true
-            endpoints = {
-              s3 = "http://localhost:4566"
-              sts = "http://localhost:4566"
-            }
-          EOP
-          fi
-          echo "}" >> infrastructure/provider.tf
+            if [ "$LOCALSTACK_ENABLED" = "true" ]; then
+              cat >> infrastructure/provider.tf <<'EOP'
+              access_key                  = "test"
+              secret_key                  = "test"
+              s3_force_path_style         = true
+              skip_credentials_validation = true
+              skip_requesting_account_id  = true
+              endpoints = {
+                s3  = "http://localhost:4566"
+                sts = "http://localhost:4566"
+              }
+            EOP
+            fi
+
+            # Always close the provider block
+            echo "}" >> infrastructure/provider.tf
+
 
       # Terraform Fmt & Validate
       - name: Terraform Lint & Validate
