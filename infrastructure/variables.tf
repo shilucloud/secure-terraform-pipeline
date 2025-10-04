@@ -29,6 +29,6 @@ variable "tags" {
 
 variable "localstack_enabled" {
   description = "To have a dynamic cicd for localstack and aws"
-  type = bool
-  default = false 
+  type        = bool
+  default     = false
 }
