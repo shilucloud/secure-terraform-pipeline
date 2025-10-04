@@ -39,8 +39,7 @@ jobs:
 
       # Terraform Fmt 
       - name: Terraform Lint 
-        run: nix-shell shell.nix --pure --run "terraform fmt -check -recursive"
-        working-directory: infrastructure
+        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform fmt -check -recursive"
       
       # Terraform Validate
       #- name: Terraform Validate
@@ -59,16 +58,13 @@ jobs:
           done
 
       - name: Terraform Init
-        run: nix-shell shell.nix --pure --run "terraform init"
-        working-directory: infrastructure
+        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform init"
 
       - name: Terraform Plan
-        run: nix-shell shell.nix --pure --run "terraform plan -out=tfplan | tee terraform-plan.txt"
-        working-directory: infrastructure
+        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform plan -out=tfplan | tee terraform-plan.txt"
       
       - name: Terraform Plan Json 
-        run: nix-shell shell.nix --pure --run "terraform show -json tfplan >> tfplan.json"
-        working-directory: infrastructure
+        run: nix-shell shell.nix --pure --run "cd infrastructure && terraform show -json tfplan >> tfplan.json"
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -84,8 +80,7 @@ jobs:
         run: nix-shell shell.nix --pure --run "checkov -d ./infrastructure -o json > checkov-report.json"
 
       - name: Run Conftest 
-        run: nix-shell shell.nix --pure --run "terraform -json show tfplan | conftest test --output=json > conftest-report.json"
-        working-directory: infrastructure
+        run: nix-shell shell.nix --pure --run "conftest test infrastructure/tfplan.json --output=json > conftest-report.json"
       
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
