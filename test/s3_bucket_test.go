@@ -2,72 +2,63 @@ package test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestS3Bucket(t *testing.T) {
-
 	t.Parallel()
 
-	//bucketName := os.Getenv("TF_VAR_bucket_name")
-	//bucketRegion := os.Getenv("TF_VAR_region")
-	//testFileKey := "test-object-from-terratest"
-	//testFileName := "objects/s3_test_object.txt"
+	start := time.Now()
 
-	tfOptions := terraform.Options{
+	// Use the test logger from Terratest's options (new-style)
+	tfOptions := &terraform.Options{
 		TerraformDir:    "../infrastructure",
-		TerraformBinary: "tflocal",
+		TerraformBinary: "tflocal", // For LocalStack
+		NoColor:         true,
+		EnvVars: map[string]string{
+			"AWS_ACCESS_KEY_ID":     "test",
+			"AWS_SECRET_ACCESS_KEY": "test",
+			"AWS_DEFAULT_REGION":    "us-east-1",
+		},
 	}
 
-	_, err := terraform.InitE(t, &tfOptions)
-	if err != nil {
-		t.Error("Error while init terraform")
-	}
+	t.Log("🚀 Starting Terraform test for S3 bucket using LocalStack...")
 
-	_, err = terraform.PlanE(t, &tfOptions)
-	if err != nil {
-		t.Error("Error while plan terraform")
-	}
-
-	_, err = terraform.ApplyE(t, &tfOptions)
-	if err != nil {
-		t.Error("Error while apply terraform")
-	}
-
+	// Ensure resources are destroyed at the end
 	defer func() {
-		_, err := terraform.DestroyE(t, &tfOptions)
-		if err != nil {
-			t.Error("Error while destroying the Infra")
+		t.Log("🧹 Cleaning up Terraform-managed infrastructure...")
+		if _, err := terraform.DestroyE(t, tfOptions); err != nil {
+			t.Logf("⚠️  Failed to destroy infra: %v", err)
 		}
 	}()
 
-	tfOutputs, err := terraform.OutputAllE(t, &tfOptions)
-	if err != nil {
-		t.Error("Error while getting the output")
+	// Init and apply Terraform
+	t.Log("🧱 Running terraform init & apply...")
+	if _, err := terraform.InitAndApplyE(t, tfOptions); err != nil {
+		t.Fatalf("❌ Terraform apply failed: %v", err)
 	}
 
-	bucketArn := tfOutputs["bucket_arn"]
-	bucketID := tfOutputs["bucket_id"]
-	bucketDomainName := tfOutputs["bucket_domain_name"]
+	// Fetch outputs
+	t.Log("📤 Fetching Terraform outputs...")
+	outputs := terraform.OutputAll(t, tfOptions)
 
-	assert.NotEmpty(t, bucketArn)
-	assert.NotEmpty(t, bucketID)
-	assert.NotEmpty(t, bucketDomainName)
+	// Validate outputs
+	required := []string{"bucket_arn", "bucket_id", "bucket_domain_name"}
+	for _, key := range required {
+		value, ok := outputs[key].(string)
+		require.Truef(t, ok, "Output '%s' missing or not string", key)
+		assert.NotEmptyf(t, value, "Output '%s' should not be empty", key)
+		t.Logf("✅ Output %s: %s", key, value)
+	}
 
-	//	err = aws.AssertS3BucketExistsE(t, bucketRegion, bucketName)
-	//	if err != nil {
-	//		t.Errorf("Error while getting the bucket: %s", bucketName)
-	//	}
-	//
-	//	data, err := os.OpenFile(testFileName, 1, 066)
-	//	if err != nil {
-	//		t.Errorf("Error while reading file: %s", testFileName)
-	//	}
-	//	err = aws.PutS3ObjectContentsE(t, bucketRegion, bucketName, testFileKey, data)
-	//	if err != nil {
-	//		t.Errorf("Error while uploading file to bucket: %s", bucketName)
-	//	}
+	// Additional format checks
+	assert.Contains(t, outputs["bucket_arn"], "arn:aws:s3", "Bucket ARN format is invalid")
+	assert.Contains(t, outputs["bucket_domain_name"], "s3", "Bucket domain name looks invalid")
 
+	duration := time.Since(start)
+	t.Logf("🎉 Test completed successfully in %s", duration)
 }

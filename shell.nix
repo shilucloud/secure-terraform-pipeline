@@ -1,7 +1,7 @@
 let
   # Pin nixpkgs to a specific release for reproducibility
   nixpkgs = builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz";
+    url = "https://github.com/NixOS/nixpkgs/archive/0pcnq88aj9zvln1ma1pp244z08cvdshvfb6w92pk5xgglpb4900l.tar.gz";
     sha256 = "sha256:0pcnq88aj9zvln1ma1pp244z08cvdshvfb6w92pk5xgglpb4900l";
   };
 
