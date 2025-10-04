@@ -15,10 +15,11 @@ jobs:
         image: localstack/localstack-pro:1.4.0
         ports:
           - 4566:4566
+        env:
+          SERVICES: s3
+          DEBUG: 1 
+          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
         options: > 
-          --env SERVICES=s3
-          --env LOCALSTACK_API_KEY=${{ secrets.LOCALSTACK_API_KEY }}
-          --env DEBUG=1
           --health-cmd="curl --silent --fail http://localhost:4566/_localstack/health | grep '\"s3\": \"running\"'"
           --health-interval=5s --health-timeout=10s --health-retries=10
     env:
