@@ -50,7 +50,7 @@ jobs:
 
       # configuring Localstack Backend
       - name: Configure LocalStack Backend
-        run: cp backends/localstack-backend.tf terraform.tf
+        run: cp infrastructure/backends/localstack-backend.tf infrastructure/terraform.tf
 
       # Terraform Fmt 
       - name: Terraform Lint 
