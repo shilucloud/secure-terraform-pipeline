@@ -10,6 +10,17 @@ on:
 jobs:
   terraform_pipeline:
     runs-on: ubuntu-latest
+    services:
+      localstack:
+        image: localstack/localstack-pro:1.4.0
+        ports:
+          - 4566:4566
+        options: > 
+          --env SERVICES=s3
+          --env LOCALSTACK_API_KEY=${{ secrets.LOCALSTACK_API_KEY }}
+          --env DEBUG=1
+          --health-cmd="curl --silent --fail http://localhost:4566/_localstack/health | grep '\"s3\": \"running\"'"
+          --health-interval=5s --health-timeout=10s --health-retries=10
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
@@ -40,7 +51,7 @@ jobs:
 
       # configuring Localstack Backend
       - name: Configure LocalStack Backend
-        run: cp backends/localstack-bakend.tf terraform.tf
+        run: cp backends/localstack-backend.tf terraform.tf
 
       # Terraform Fmt 
       - name: Terraform Lint 
@@ -51,16 +62,16 @@ jobs:
         run: nix-shell shell.nix --pure --run "tflocal validate"
 
       # Start LocalStack (single instance for all steps)
-      - name: Start LocalStack
-        run: docker compose -f localstack/localstack-compose.yml up -d
+     # - name: Start LocalStack
+     #   run: docker compose -f localstack/localstack-compose.yml up -d
 
       # Wait for LocalStack readiness
-      - name: Wait for LocalStack
-        run: |
-          until curl -s http://localhost:4566/health | grep '"s3": "running"'; do
-            echo "Waiting for LocalStack..."
-            sleep 2
-          done
+     # - name: Wait for LocalStack
+     #   run: |
+     #     until curl -s http://localhost:4566/health | grep '"s3": "running"'; do
+     #       echo "Waiting for LocalStack..."
+      #      sleep 2
+      #    done
 
       - name: Terraform Init
         run: nix-shell shell.nix --pure --run "cd infrastructure && tflocal init"
