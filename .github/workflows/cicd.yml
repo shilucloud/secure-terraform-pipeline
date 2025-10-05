@@ -16,7 +16,7 @@ jobs:
         ports:
           - 4566:4566
         env:
-          SERVICES: s3
+          SERVICES: s3,sts
           DEBUG: 1 
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
         
