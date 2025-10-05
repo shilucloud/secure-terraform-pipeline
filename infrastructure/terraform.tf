@@ -1,4 +1,3 @@
-
 terraform {
   required_version = ">= 1.3.0"
 
@@ -8,4 +7,7 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  # Backend type (S3 or local) is selected dynamically via `terraform init`
+  backend "s3" {}
 }
