@@ -58,20 +58,17 @@ jobs:
       - name: Terraform Lint
         run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"
 
-      # Terraform Init (Fixed quoting)
-      - name: Terraform Init
-        run: |
-          nix-shell shell.nix --run '
-            cd infrastructure &&
-            tflocal init \
-              -reconfigure \
-              -backend-config=envs/localstack.backend \
-              -backend-config="backend=local"
-          '
-
       # Terraform Validate
       - name: Terraform Validate
         run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
+
+      # Terraform Init for LocalStack
+      - name: Terraform Init (LocalStack)
+        run: |
+          nix-shell shell.nix --run '
+            cd infrastructure &&
+            tflocal init -reconfigure -backend-config=envs/localstack.backend
+          '
 
       # Terraform Plan
       - name: Terraform Plan
