@@ -8,5 +8,5 @@ terraform {
     }
   }
 
-  backend "s3" {}      # or backend "local" {}
+  backend "s3" {} # or backend "local" {}
 }
