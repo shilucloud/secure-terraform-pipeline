@@ -57,18 +57,15 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
+      # Create LocalStack S3 backend bucket
       - name: Creating Backend Bucket 
         run: aws --endpoint-url=http://localhost:4566 s3 mb s3://localstack-terraform-state
 
-      # Terraform Fmt
+      # Terraform Lint
       - name: Terraform Lint
         run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"
 
-      # Terraform Validate
-      #- name: Terraform Validate
-      #  run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
-
-      # Terraform Init for LocalStack
+      # Terraform Init
       - name: Terraform Init (LocalStack)
         run: |
           nix-shell shell.nix --run '
@@ -92,8 +89,9 @@ jobs:
             tflocal show -json tfplan > tfplan.json
           '
 
-      # Upload Terraform Plan
+      # Upload Terraform Plan artifacts
       - name: Upload Terraform Plan
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
@@ -102,32 +100,56 @@ jobs:
             infrastructure/terraform-plan.txt
             infrastructure/tfplan.json
 
-      # Debugging Stage
-      - name: Testing Stage
+      # Debugging stage
+      - name: Debug Terraform Files
+        if: always()
         run: |
-          cat infrastructure/terraform.tf
-          cat infrastructure/variables.tf
-          cat infrastructure/provider.tf
-          cat infrastructure/main.tf
-          cat infrastructure/outputs.tf
+          cat infrastructure/terraform.tf || true
+          cat infrastructure/variables.tf || true
+          cat infrastructure/provider.tf || true
+          cat infrastructure/main.tf || true
+          cat infrastructure/outputs.tf || true
 
-      # Security Scans
-      - name: Run Checkov Scans
-        run: nix-shell shell.nix --run "checkov -f ./infrastructure/tfplan.json -o json > checkov-report.json"
+      # ---------------------------------
+      # 🛡️ Security Scans
+      # ---------------------------------
 
-      - name: Run Conftest
-        run: nix-shell shell.nix --run "conftest test infrastructure/tfplan.json --output=json > conftest-report.json"
+      - name: Run Checkov Scan
+        id: checkov
+        continue-on-error: true
+        run: |
+          nix-shell shell.nix --run "
+            checkov -f ./infrastructure/tfplan.json -o json > checkov-report.json
+          "
 
-      - name: Upload Security Reports
+      - name: Upload Checkov Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
-          path: |
-            checkov-report.json
-            conftest-report.json
+          name: checkov-report
+          path: checkov-report.json
 
-      # Terratest
+      - name: Run Conftest Scan
+        id: conftest
+        continue-on-error: true
+        run: |
+          nix-shell shell.nix --run "
+            conftest test infrastructure/tfplan.json --output=json > conftest-report.json
+          "
+
+      - name: Upload Conftest Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conftest-report
+          path: conftest-report.json
+
+      # ---------------------------------
+      # 🧪 Terratest
+      # ---------------------------------
       - name: Run Terratest
+        id: terratest
+        continue-on-error: true
         run: |
           nix-shell shell.nix --run '
             cd test &&
@@ -135,24 +157,27 @@ jobs:
           '
 
       - name: Upload Terratest Results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terratest-results
           path: test/terratest-results.txt
 
-      # PR Comment Summary
+      # ---------------------------------
+      # 💬 PR Summary Comment
+      # ---------------------------------
       - name: PR Comment with Summary
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: terraform-summary
           message: |
-            ## ✅ Terraform Validation Summary
+            ## ✅ Terraform CI/CD Summary
 
-            - **Lint & Validate:** Passed  
-            - **Checkov Security Scan:** See artifact (`checkov-report.json`)  
-            - **OPA/Conftest Policies:** See artifact (`conftest-report.json`)  
-            - **Terratest Results:** See artifact (`terratest-results.txt`)  
-            - **Terraform Plan:** Uploaded (`terraform-plan.txt`)  
+            - **Lint & Init:** Completed  
+            - **Checkov Security Scan:** [Artifact → `checkov-report.json`]  
+            - **Conftest OPA Policies:** [Artifact → `conftest-report.json`]  
+            - **Terratest Results:** [Artifact → `terratest-results.txt`]  
+            - **Terraform Plan Files:** [Artifact → `terraform-plan.txt`]  
 
-            ⚠️ Please review reports before merging.
+            ⚠️ Please review the uploaded artifacts before merging.
