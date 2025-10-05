@@ -58,10 +58,6 @@ jobs:
       - name: Terraform Lint
         run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"
 
-      # Terraform Validate
-      - name: Terraform Validate
-        run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
-
       # Terraform Init (Fixed quoting)
       - name: Terraform Init
         run: |
@@ -72,6 +68,10 @@ jobs:
               -backend-config=envs/localstack.backend \
               -backend-config="backend=local"
           '
+
+      # Terraform Validate
+      - name: Terraform Validate
+        run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
 
       # Terraform Plan
       - name: Terraform Plan
