@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       localstack:
-        image: localstack/localstack-pro:1.4.0
+        image: localstack/localstack-pro:latest
         ports:
           - 4566:4566
         env:
@@ -91,9 +91,17 @@ jobs:
         with:
           name: terraform-plan
           path: |
-            tfplan
-            terraform-plan.txt
-            tfplan.json 
+            infrastructure/tfplan
+            infrastructure/terraform-plan.txt
+            infrastructure/tfplan.json 
+
+      - name: Testing Stage 
+        run: |
+          cat infrastructure/terraform.tf
+          cat infrastructure/variables.tf 
+          cat infrastructure/provider.tf 
+          cat infrastructure/main.tf 
+          cat infrastructure/outputs.tf 
 
       # Security scans
       - name: Run Checkov Scans
