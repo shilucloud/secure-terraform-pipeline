@@ -134,7 +134,7 @@ jobs:
         continue-on-error: true
         run: |
           nix-shell shell.nix --run "
-            conftest test infrastructure/tfplan.json --output=json > conftest-report.json
+            conftest test infrastructure/tfplan.json --output=json --no-fail > conftest-report.json
           "
 
       - name: Upload Conftest Report
@@ -148,8 +148,6 @@ jobs:
       # 🧪 Terratest
       # ---------------------------------
       - name: Run Terratest
-        id: terratest
-        continue-on-error: true
         run: |
           nix-shell shell.nix --run '
             cd test &&

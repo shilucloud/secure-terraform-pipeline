@@ -10,7 +10,7 @@ import (
 )
 
 func TestS3Bucket(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
 	start := time.Now()
 

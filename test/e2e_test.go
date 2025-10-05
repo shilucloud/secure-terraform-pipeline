@@ -9,7 +9,7 @@ import (
 
 func TestE2E(t *testing.T) {
 
-	t.Parallel()
+	//t.Parallel()
 
 	//bucketName := os.Getenv("TF_VAR_bucket_name")
 	//bucketRegion := os.Getenv("TF_VAR_region")
