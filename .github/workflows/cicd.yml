@@ -57,6 +57,9 @@ jobs:
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
+      - name: Creating Backend Bucket 
+        run: aws --endpoint-url=http://localhost:4566 s3 mb s3://localstack-terraform-state
+
       # Terraform Fmt
       - name: Terraform Lint
         run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"

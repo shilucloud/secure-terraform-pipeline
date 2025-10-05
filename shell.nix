@@ -15,7 +15,7 @@ pkgs.mkShell {
   pure = true;
 
   buildInputs = if isCI then
-    [ pkgs.go pkgs.checkov pkgs.conftest pkgs.terraform pkgs.terraform-local]
+    [ pkgs.go pkgs.checkov pkgs.conftest pkgs.terraform pkgs.terraform-local pkgs.awscli2]
   else
     [
       pkgs.git
