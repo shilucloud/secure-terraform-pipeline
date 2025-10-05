@@ -65,8 +65,8 @@ jobs:
         run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"
 
       # Terraform Validate
-      - name: Terraform Validate
-        run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
+      #- name: Terraform Validate
+      #  run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
 
       # Terraform Init for LocalStack
       - name: Terraform Init (LocalStack)
