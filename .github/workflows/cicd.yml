@@ -10,6 +10,7 @@ on:
 jobs:
   terraform_pipeline:
     runs-on: ubuntu-latest
+
     services:
       localstack:
         image: localstack/localstack-pro:latest
@@ -17,16 +18,16 @@ jobs:
           - 4566:4566
         env:
           SERVICES: s3,sts
-          DEBUG: 1 
+          DEBUG: 1
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
-        
+
     env:
       IS_CI: true
       TF_IN_AUTOMATION: true
       TF_CLI_ARGS: "-no-color"
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
       LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
-      TF_VAR_localstack_enabled: true 
+      TF_VAR_localstack_enabled: true
       AWS_ENDPOINT_URL: "http://localhost:4566"
       TF_VAR_bucket_name: ${{ secrets.TF_VAR_BUCKET_NAME }}
       TF_VAR_aws_region: ${{ secrets.TF_VAR_AWS_REGION }}
@@ -49,43 +50,46 @@ jobs:
           restore-keys: |
             terraform-go-${{ runner.os }}-
 
-      # Setup Nix once
+      # Setup Nix
       - name: Setup Nix
         uses: cachix/install-nix-action@v22
 
-      # configuring Localstack Backend
-      #- name: Configure LocalStack Backend
-      #  run: cp infrastructure/backends/localstack-backend.tf infrastructure/terraform.tf
+      # Terraform Fmt
+      - name: Terraform Lint
+        run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"
 
-      # Terraform Fmt 
-      - name: Terraform Lint 
-        run: nix-shell shell.nix  --run "cd infrastructure && tflocal fmt -check -recursive"
-      
       # Terraform Validate
       - name: Terraform Validate
-        run: nix-shell shell.nix  --run "tflocal validate"
+        run: nix-shell shell.nix --run "cd infrastructure && tflocal validate"
 
-      # Start LocalStack (single instance for all steps)
-     # - name: Start LocalStack
-     #   run: docker compose -f localstack/localstack-compose.yml up -d
-
-      # Wait for LocalStack readiness
-     # - name: Wait for LocalStack
-     #   run: |
-     #     until curl -s http://localhost:4566/health | grep '"s3": "running"'; do
-     #       echo "Waiting for LocalStack..."
-      #      sleep 2
-      #    done
-
+      # Terraform Init (Fixed quoting)
       - name: Terraform Init
-        run: nix-shell shell.nix  --run "cd infrastructure && tflocal init -reconfigure -backend-config=envs/localstack.backend -backend-config="backend=local"
+        run: |
+          nix-shell shell.nix --run '
+            cd infrastructure &&
+            tflocal init \
+              -reconfigure \
+              -backend-config=envs/localstack.backend \
+              -backend-config="backend=local"
+          '
 
+      # Terraform Plan
       - name: Terraform Plan
-        run: nix-shell shell.nix --run "cd infrastructure && tflocal plan -out=tfplan | tee terraform-plan.txt"
-      
-      - name: Terraform Plan Json 
-        run: nix-shell shell.nix  --run "cd infrastructure && tflocal show -json tfplan >> tfplan.json"
+        run: |
+          nix-shell shell.nix --run '
+            cd infrastructure &&
+            tflocal plan -out=tfplan | tee terraform-plan.txt
+          '
 
+      # Convert Plan to JSON
+      - name: Terraform Plan JSON
+        run: |
+          nix-shell shell.nix --run '
+            cd infrastructure &&
+            tflocal show -json tfplan > tfplan.json
+          '
+
+      # Upload Terraform Plan
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
@@ -93,23 +97,24 @@ jobs:
           path: |
             infrastructure/tfplan
             infrastructure/terraform-plan.txt
-            infrastructure/tfplan.json 
+            infrastructure/tfplan.json
 
-      - name: Testing Stage 
+      # Debugging Stage
+      - name: Testing Stage
         run: |
           cat infrastructure/terraform.tf
-          cat infrastructure/variables.tf 
-          cat infrastructure/provider.tf 
-          cat infrastructure/main.tf 
-          cat infrastructure/outputs.tf 
+          cat infrastructure/variables.tf
+          cat infrastructure/provider.tf
+          cat infrastructure/main.tf
+          cat infrastructure/outputs.tf
 
-      # Security scans
+      # Security Scans
       - name: Run Checkov Scans
         run: nix-shell shell.nix --run "checkov -d ./infrastructure -o json > checkov-report.json"
 
-      - name: Run Conftest 
+      - name: Run Conftest
         run: nix-shell shell.nix --run "conftest test infrastructure/tfplan.json --output=json > conftest-report.json"
-      
+
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
@@ -120,7 +125,11 @@ jobs:
 
       # Terratest
       - name: Run Terratest
-        run: nix-shell shell.nix --run "cd test && go test ./ -v -timeout 30m | tee terratest-results.txt"
+        run: |
+          nix-shell shell.nix --run '
+            cd test &&
+            go test ./ -v -timeout 30m | tee terratest-results.txt
+          '
 
       - name: Upload Terratest Results
         uses: actions/upload-artifact@v4
@@ -128,7 +137,7 @@ jobs:
           name: terratest-results
           path: test/terratest-results.txt
 
-      # PR comment
+      # PR Comment Summary
       - name: PR Comment with Summary
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
