@@ -1,5 +1,4 @@
-bucket         = "my-prod-terraform-state"
+bucket         = "secure-terraform-prod-terraform-state"
 key            = "infra/terraform.tfstate"
 region         = "us-east-1"
-dynamodb_table = "terraform-locks"
 encrypt        = true
