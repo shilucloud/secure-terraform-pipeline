@@ -25,7 +25,7 @@ jobs:
       - name: Run driftctl
         run: |
           driftctl scan \
-            --from s3://terraform-state-bucket/terraform.tfstate \
+            --from s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
             --to aws+tf \
             --output json \
             --out tf-drift-report.json
