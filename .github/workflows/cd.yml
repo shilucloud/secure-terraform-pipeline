@@ -89,14 +89,12 @@ jobs:
             infrastructure/terraform-plan.txt 
             infrastructure/tfplan.json 
 
-      - name: Await Manual Approval
-        uses: trstringer/manual-approval@v1
+      - name: Manual Approval
+        uses: trstringer/manual-approval@v1.11.0
         with:
-          secret: ${{ github.TOKEN }}
-          approvers: shilucloud
+          approvers: '@shilucloud'
           minimum-approvals: 1
           issue-title: "Manual Approval Required for Terraform Apply"
-          issue-body: "Please approve or deny the deployment."
 
       - name: Terraform Apply 
         run: |
