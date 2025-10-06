@@ -7,6 +7,7 @@ on:
 
 permissions:
   id-token: write
+  contents: read
 
 jobs:
   drift-check:
@@ -24,11 +25,8 @@ jobs:
         uses: snyk/driftctl-action@v1
         with:
           version: 0.38.2
-
-      - name: Run driftctl
-        run: |
-          driftctl scan \
-            --from s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
+          args: scan \
+            --from s3://terraform-state-bucket/path/terraform.tfstate \
             --to aws+tf \
             --output json \
             --out tf-drift-report.json
