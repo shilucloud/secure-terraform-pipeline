@@ -37,10 +37,6 @@ jobs:
           role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
           aws-region: us-east-1
 
-      # install Nix 
-      - name: Install Nix
-        uses: 
-
       # 1. Nix cache
       - name: Cache Nix store & profile
         uses: actions/cache@v4
