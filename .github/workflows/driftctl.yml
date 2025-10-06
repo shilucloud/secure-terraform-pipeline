@@ -11,16 +11,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install driftctl
-        uses: snyk/driftctl-action@v1
-        with:
-          version: 0.38.2
-
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
           aws-region: us-east-1
+
+      - name: Install driftctl
+        uses: snyk/driftctl-action@v1
+        with:
+          version: 0.38.2
 
       - name: Run driftctl
         run: |
