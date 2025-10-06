@@ -5,6 +5,9 @@ on:
     - cron: "0 2 * * *"   # run daily at 2 AM
   workflow_dispatch:       # allows manual run as well
 
+permissions:
+  id-token: write
+
 jobs:
   drift-check:
     runs-on: ubuntu-latest
