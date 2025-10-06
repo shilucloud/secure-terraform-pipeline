@@ -91,10 +91,13 @@ jobs:
 
       - name: Manual Approval
         uses: trstringer/manual-approval@v1.11.0
+        permissions:
+          issues: write
         with:
           approvers: '@shilucloud'
           minimum-approvals: 1
           issue-title: "Manual Approval Required for Terraform Apply"
+          secret: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Terraform Apply 
         run: |
