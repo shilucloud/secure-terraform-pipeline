@@ -39,7 +39,7 @@ jobs:
       TF_VAR_aws_tags: ${{ secrets.TF_VAR_TAGS }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Cache Terraform & Go modules
       - name: Cache Terraform & Go
@@ -55,7 +55,7 @@ jobs:
 
       # Setup Nix
       - name: Setup Nix
-        uses: cachix/install-nix-action@v22
+        uses: cachix/install-nix-action@v31
 
       # Create LocalStack S3 backend bucket
       - name: Creating Backend Bucket 
