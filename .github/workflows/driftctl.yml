@@ -18,7 +18,7 @@ jobs:
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
+          role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-full-access
           aws-region: us-east-1
 
       - name: Install driftctl
@@ -26,7 +26,7 @@ jobs:
         with:
           version: 0.38.2
           args: scan \
-            --from s3://terraform-state-bucket/path/terraform.tfstate \
+            --from tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
             --to aws+tf \
             --output json \
             --out tf-drift-report.json

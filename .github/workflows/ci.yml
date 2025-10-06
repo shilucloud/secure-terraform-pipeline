@@ -54,9 +54,9 @@ jobs:
           path: |
             ~/.cache/nix
             ~/.nix-profile
-          key: nix-cache-${{ runner.os }}-${{ hashFiles('**/shell.nix') }}
+          key: nix-cache-${{ runner.os }}-${{ hashFiles('**/shell.nix') }}-ci
           restore-keys: |
-            nix-cache-${{ runner.os }}-
+            nix-cache-${{ runner.os }}-ci
 
       # 2. Terraform cache
       - name: Cache Terraform 
@@ -65,9 +65,9 @@ jobs:
           path: |
             ~/.terraform.d/plugin-cache 
             .terraform 
-          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
+          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-ci
           restore-keys: |
-            terraform-${{ runner.os }}-
+            terraform-${{ runner.os }}-ci
 
       # 3. Cache Go modules
       - name: Cache Go
@@ -75,9 +75,9 @@ jobs:
         with:
           path: |
             ~/go/pkg/mod
-          key: go-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
+          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}-ci
           restore-keys: |
-            go-${{ runner.os }}-
+            go-${{ runner.os }}-ci
 
       # Create LocalStack S3 backend bucket
       - name: Creating Backend Bucket 

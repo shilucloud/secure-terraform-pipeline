@@ -31,6 +31,7 @@ pkgs.mkShell {
         pkgs.terraform
         pkgs.terraform-local
         pkgs.act
+        pkgs.driftctl
       ];
 
   shellHook = ''

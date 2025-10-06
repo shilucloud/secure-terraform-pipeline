@@ -47,9 +47,9 @@ jobs:
           path: |
             ~/.cache/nix
             ~/.nix-profile
-          key: nix-cache-${{ runner.os }}-${{ hashFiles('**/shell.nix') }}
+          key: nix-cache-${{ runner.os }}-${{ hashFiles('**/shell.nix') }}-cd
           restore-keys: |
-            nix-cache-${{ runner.os }}-
+            nix-cache-${{ runner.os }}-cd 
 
       # 2. Terraform cache
       - name: Cache Terraform 
@@ -58,9 +58,9 @@ jobs:
           path: |
             ~/.terraform.d/plugin-cache 
             .terraform 
-          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
+          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-cd
           restore-keys: |
-            terraform-${{ runner.os }}-
+            terraform-${{ runner.os }}-cd 
 
       - name: Terraform Init 
         run: |
