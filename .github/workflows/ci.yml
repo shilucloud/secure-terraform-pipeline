@@ -1,4 +1,4 @@
-name: Terraform CI/CD
+name: Terraform CI
 
 permissions:
   contents: read
@@ -43,7 +43,27 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      
+      # 1. Nix cache
+      - name: Cache Nix store & profile
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nix
+            ~/.nix-profile
+          key: nix-cache-${{ runner.os }}-${{ hashFiles('**/shell.nix') }}
+          restore-keys: |
+            nix-cache-${{ runner.os }}-
+
+      # 2. Terraform cache
+      - name: Cache Terraform 
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache 
+            .terraform 
+          key: terraform-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            terraform-${{ runner.os }}-
 
       # 3. Cache Go modules
       - name: Cache Go
