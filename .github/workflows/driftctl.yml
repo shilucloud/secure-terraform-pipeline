@@ -1,0 +1,37 @@
+name: Scheduled Drift Detection
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # run daily at 2 AM
+  workflow_dispatch:       # allows manual run as well
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install driftctl
+        uses: snyk/driftctl-action@v1
+        with:
+          version: 0.38.2
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
+          aws-region: us-east-1
+
+      - name: Run driftctl
+        run: |
+          driftctl scan \
+            --from s3://terraform-state-bucket/terraform.tfstate \
+            --to aws+tf \
+            --output json \
+            --out tf-drift-report.json
+
+      - name: Upload drift report
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: tf-drift-report.json
