@@ -43,6 +43,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Setup Nix
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v31
+
       # 1. Nix cache
       - name: Cache Nix store & profile
         uses: actions/cache@v4
@@ -74,10 +78,6 @@ jobs:
           key: go-${{ runner.os }}-${{ hashFiles('**/*.tf') }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             go-${{ runner.os }}-
-
-      # Setup Nix
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v31
 
       # Create LocalStack S3 backend bucket
       - name: Creating Backend Bucket 
