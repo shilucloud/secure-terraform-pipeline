@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       WORKFLOW: driftctl
+      NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
     steps:
       - uses: actions/checkout@v5
 
