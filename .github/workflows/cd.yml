@@ -17,7 +17,7 @@ jobs:
   deploy_to_aws:
     runs-on: ubuntu-latest 
     env:
-      IS_CD: true 
+      WORKFLOW: cd 
       TF_VAR_bucket_name: ${{ secrets.TF_VAR_BUCKET_NAME }}
       TF_VAR_aws_region: ${{ secrets.TF_VAR_AWS_REGION }}
       TF_VAR_enable_versioning: ${{ secrets.TF_VAR_ENABLE_VERSIONING }}

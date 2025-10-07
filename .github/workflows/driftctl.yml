@@ -12,6 +12,8 @@ permissions:
 jobs:
   drift-check:
     runs-on: ubuntu-latest
+    env:
+      WORKFLOW: driftctl
     steps:
       - uses: actions/checkout@v5
 
@@ -22,15 +24,11 @@ jobs:
           aws-region: us-east-1
 
       - name: Install driftctl
-        uses: snyk/driftctl-action@v1
-        with:
-          version: 0.38.2
-          args: scan \
-            --from tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
-            --to aws+tf \
-            --output json \
-            --out tf-drift-report.json
-
+        run: nix-shell shell.nix --run '
+          driftctl scan --from=tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
+          --output=tf-drift-report.json \
+          --to aws+tf 
+        '
       - name: Upload drift report
         uses: actions/upload-artifact@v4
         with:

@@ -24,7 +24,7 @@ jobs:
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
 
     env:
-      IS_CI: true
+      WORKFLOW: ci
       TF_IN_AUTOMATION: true
       TF_CLI_ARGS: "-no-color"
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
