@@ -28,7 +28,7 @@ jobs:
 
       - name: Install driftctl
         run: |
-          nix-shell shell.nix --run ''
+          nix-shell shell.nix --run '
             driftctl scan --from=tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate --output=tf-drift-report.json --to aws+tf
         '
 
