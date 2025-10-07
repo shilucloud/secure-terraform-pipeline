@@ -31,8 +31,9 @@ jobs:
         run: |
           nix-shell shell.nix --run "driftctl scan \
             --from=tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
-            --output=json:tf-drift-report.json \
-            --to aws+tf"
+            --to aws+tf \
+            --output json://tf-drift-report.json"
+
 
 
       - name: Upload drift report
