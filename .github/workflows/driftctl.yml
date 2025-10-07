@@ -23,6 +23,9 @@ jobs:
           role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-full-access
           aws-region: us-east-1
 
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v31s
+
       - name: Install driftctl
         run: nix-shell shell.nix --run '
           driftctl scan --from=tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
