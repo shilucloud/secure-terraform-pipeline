@@ -28,10 +28,11 @@ jobs:
 
       - name: Run Driftctl scan
         run: |
-          nix-shell shell.nix --run driftctl scan \
+          nix-shell shell.nix --run "driftctl scan \
             --from=tfstate+s3://secure-terraform-prod-terraform-state/infra/terraform.tfstate \
             --output=tf-drift-report.json \
-            --to aws+tf
+            --to aws+tf"
+
 
       - name: Upload drift report
         if: always()
