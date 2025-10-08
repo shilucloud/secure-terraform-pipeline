@@ -40,13 +40,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: drift-report
+          name: drift-report-driftctl-${{ github.run_id }}
           path: tf-drift-report.json
 
   
   auto_remediation:
     runs-on: ubuntu:latest 
-    
+    needs: 
+      - drift-check
     env:
       TF_VAR_bucket_name: ${{ secrets.TF_VAR_BUCKET_NAME }}
       TF_VAR_aws_region: ${{ secrets.TF_VAR_AWS_REGION }}
@@ -96,7 +97,7 @@ jobs:
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan 
+          name: terraform-plan-driftctl-${{ github.run_id }}
           path: |
             infrastructure/tfplan
             infrastructure/tfplan.json

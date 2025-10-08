@@ -86,7 +86,7 @@ jobs:
       - name: Upload Terraform Plan 
         uses: actions/upload-artifact@v4 
         with:
-          name: terraform-plan 
+          name: terraform-plan-cd-${{ github.run_id }}
           path: |
             infrastructure/tfplan 
             infrastructure/terraform-plan.txt 

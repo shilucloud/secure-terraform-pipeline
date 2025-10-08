@@ -116,7 +116,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan
+          name: terraform-plan-ci-${{ github.run_id }}
           path: |
             infrastructure/tfplan
             infrastructure/terraform-plan.txt
@@ -148,7 +148,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: checkov-report
+          name: checkov-report-ci-${{ github.run_id }}
           path: checkov-report.json
 
       - name: Run Conftest Scan
@@ -163,7 +163,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: conftest-report
+          name: conftest-report-ci-${{ github.run_id }}
           path: conftest-report.json
 
       # ---------------------------------
@@ -180,7 +180,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terratest-results
+          name: terratest-results-ci-${{ github.run_id }}
           path: test/terratest-results.txt
 
       # ---------------------------------
