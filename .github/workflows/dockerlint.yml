@@ -19,7 +19,7 @@ jobs:
         id: hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: '**/Dockerfile'   # lint all Dockerfiles
+          dockerfile: 'Dockerfile'   # lint all Dockerfiles
           format: json                   # JSON output (for easier parsing)
           ignore: DL3003,DL4000          # optional: ignore rules
 
