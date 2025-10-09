@@ -45,7 +45,7 @@ jobs:
 
   
   auto_remediation:
-    runs-on: ubuntu:latest 
+    runs-on: ubuntu-latest 
     needs: 
       - drift-check
     env:

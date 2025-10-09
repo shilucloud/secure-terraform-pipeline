@@ -27,8 +27,12 @@ jobs:
       - name: Hadolint Summary
         if: ${{ steps.hadolint.outputs.exitcode != 0 }}
         run: |
-          echo "Hadolint exit code: ${{ steps.hadolint.outputs.exitcode }}"
-          echo "Hadolint warnings: ${{ steps.hadolint.outputs.warnings }}"
-          echo "Hadolint errors: ${{ steps.hadolint.outputs.errors }}"
-          echo "Hadolint scanned files: ${{ steps.hadolint.outputs.files }}"
-          exit ${{ steps.hadolint.outputs.exitcode }}
+            echo "Hadolint exit code: ${{ steps.hadolint.outputs.exitcode }}"
+            echo "Hadolint warnings: ${{ steps.hadolint.outputs.warnings }}"
+            echo "Hadolint errors: ${{ steps.hadolint.outputs.errors }}"
+            echo "Hadolint scanned files: ${{ steps.hadolint.outputs.files }}"
+            code=${{ steps.hadolint.outputs.exitcode || 1 }}
+            # Ensure exit code is within 0-255
+            code=$((code & 255))
+            exit $code
+

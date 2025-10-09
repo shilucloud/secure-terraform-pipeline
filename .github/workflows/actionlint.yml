@@ -28,11 +28,14 @@ jobs:
       - name: Actionlint Summary
         if: ${{ steps.actionlint.outputs.exit-code != 0 }}
         run: |
-          echo "Actionlint version: ${{ steps.actionlint.outputs.version-semver }} (${{
+            echo "Actionlint version: ${{ steps.actionlint.outputs.version-semver }} (${{
             steps.actionlint.outputs.version-tag }})"
-          echo "Checked files: ${{ steps.actionlint.outputs.total-files }}"
-          echo "Total errors: ${{ steps.actionlint.outputs.total-errors }}"
-          echo "Exit code: ${{ steps.actionlint.outputs.exit-code }}"
-          echo "Exit message: ${{ steps.actionlint.outputs.exit-message }}"
-          echo "Cache hit: ${{ steps.actionlint.outputs.cache-hit }}"
-          exit ${{ steps.actionlint.outputs.exit-code }}
+            echo "Checked files: ${{ steps.actionlint.outputs.total-files }}"
+            echo "Total errors: ${{ steps.actionlint.outputs.total-errors }}"
+            echo "Exit code: ${{ steps.actionlint.outputs.exit-code }}"
+            echo "Exit message: ${{ steps.actionlint.outputs.exit-message }}"
+            echo "Cache hit: ${{ steps.actionlint.outputs.cache-hit }}"
+            code=${{ steps.actionlint.outputs.exit-code || 1 }}
+            # Make sure the code is within 0-255
+            code=$((code & 255))
+            exit $code

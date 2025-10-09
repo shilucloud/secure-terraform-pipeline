@@ -36,6 +36,7 @@ pkgs.mkShell {
         pkgs.act
         pkgs.driftctl
         pkgs.tflint
+	pkgs.actionlint
       ];
 
   shellHook = ''
