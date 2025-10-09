@@ -60,6 +60,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5 
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
+          aws-region: us-east-1
+
       - name: Cache Terraform 
         uses: actions/cache@v4
         with:
