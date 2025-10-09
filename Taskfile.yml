@@ -1,0 +1,123 @@
+version: '3'
+
+vars:
+  PROJECT_NAME: "myinfra"
+
+tasks:
+
+  # -------------------
+  # Environment Setup
+  # -------------------
+  download:
+    desc: "Install Nix"
+    cmds:
+      - echo "Installing Nix (if not installed)..."
+      - sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon || true
+
+  setup:
+    desc: "Enter Nix shell"
+    cmds:
+      - echo "Changing Backend Name in Terraform Backend Config with env"
+      - sed -i "s/^bucket *= *.*/bucket         = \"${BUCKET_NAME}\"/" infrastructure/envs/aws.backend
+      - sed -i "s/^bucket *= *.*/bucket         = \"${BUCKET_NAME}\"/" infrastructure/envs/localstack.backend
+      - echo "Entering Nix shell..."
+      - nix-shell
+
+  # -------------------
+  # LocalStack Tasks
+  # -------------------
+  localstack-up:
+    desc: "Start LocalStack for local testing"
+    cmds:
+      - docker compose -f localstack/localstack-compose.yml up -d
+
+  localstack-down:
+    desc: "Stop LocalStack"
+    cmds:
+      - docker compose -f localstack/localstack-compose.yml down
+
+  # -------------------
+  # TFLocal Tasks (LocalStack)
+  # -------------------
+  tflocal-init:
+    desc: "Initialize Terraform using LocalStack"
+    cmds:
+      - cd infrastructure
+      - tflocal init -backend-config=envs/localstack.backend
+
+  tflocal-apply:
+    desc: "Apply Terraform using LocalStack"
+    cmds:
+      - cd infrastructure
+      - tflocal apply -auto-approve -var "bucket=$BUCKET_NAME"
+
+  tflocal-destroy:
+    desc: "Destroy Terraform using LocalStack"
+    cmds:
+      - cd infrastructure
+      - tflocal destroy -auto-approve -var "bucket=$BUCKET_NAME"
+
+  # -------------------
+  # GitHub Actions via act
+  # -------------------
+  act-show:
+    desc: "Show all workflows"
+    cmds:
+      - echo "Listing all workflows..."
+      - act --list
+
+  act-lint:
+    desc: "Run lint workflow locally"
+    cmds:
+      - act lint --secret-file .secrets.env
+
+  act-deploy:
+    desc: "Run deploy_to_aws workflow locally"
+    cmds:
+      - act deploy_to_aws --secret-file .secrets.env
+
+  act-terraform:
+    desc: "Run terraform_pipeline workflow locally"
+    cmds:
+      - act terraform_pipeline --secret-file .secrets.env
+
+  act-dep-review:
+    desc: "Run dependency-review workflow locally"
+    cmds:
+      - act dependency-review --secret-file .secrets.env
+
+  act-dockerlint:
+    desc: "Run dockerlint workflow locally"
+    cmds:
+      - act dockerlint --secret-file .secrets.env
+
+  act-drift-check:
+    desc: "Run drift-check workflow locally"
+    cmds:
+      - act drift-check --secret-file .secrets.env
+
+  act-auto-remediation:
+    desc: "Run auto_remediation workflow locally"
+    cmds:
+      - act auto_remediation --secret-file .secrets.env
+
+  # -------------------
+  # Composite Tasks
+  # -------------------
+  all-local:
+    desc: "Full local workflow: configure, LocalStack, tflocal, GitHub Actions"
+    deps:
+      - configure
+      - setup
+      - localstack-up
+      - tflocal-init
+      - tflocal-apply
+      - act-show
+
+  dev-local:
+    desc: "Prepare local development environment only"
+    deps:
+      - configure
+      - setup
+      - localstack-up
+      - tflocal-init
