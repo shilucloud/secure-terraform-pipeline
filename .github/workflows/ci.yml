@@ -42,7 +42,7 @@ jobs:
       TF_VAR_aws_region: ${{ secrets.TF_VAR_AWS_REGION }}
       TF_VAR_enable_versioning: ${{ secrets.TF_VAR_ENABLE_VERSIONING }}
       TF_VAR_env: ${{ secrets.TF_VAR_ENV }}
-      TF_VAR_aws_tags: ${{ secrets.TF_VAR_TAGS }}
+      TF_VAR_tags: ${{ secrets.TF_VAR_TAGS }}
 
     steps:
       - uses: actions/checkout@v5
@@ -146,38 +146,46 @@ jobs:
 
       - name: Run Checkov Scan
         id: checkov
-        continue-on-error: true
+        continue-on-error: true 
         run: |
           nix-shell shell.nix --run "
-            checkov -f ./infrastructure/tfplan.json -o json > checkov-report.json
+            checkov -f ./infrastructure/tfplan.json --hard-fail-on=HIGH,CRITICAL -o json > checkov-report.json
           "
 
       - name: Upload Checkov Report
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report-ci-${{ github.run_id }}
           path: checkov-report.json
 
+      - name: Stopping workflow if Checkov Failed
+        if: steps.checkov.outcome == 'failure'
+        run: exit 1 
+
       - name: Run Conftest Scan
         id: conftest
-        continue-on-error: true
+        continue-on-error: true 
         run: |
           nix-shell shell.nix --run "
             conftest test infrastructure/tfplan.json --output=json --no-fail > conftest-report.json
           "
 
       - name: Upload Conftest Report
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: conftest-report-ci-${{ github.run_id }}
           path: conftest-report.json
 
+      - name: Stopping Workflow if Conftest Failed 
+        if: steps.conftest.outcome == 'failure'
+        run: exit 1 
+
       # ---------------------------------
       # 🧪 Terratest
       # ---------------------------------
       - name: Run Terratest
+        id: terratest 
+        continue-on-error: true 
         run: |
           nix-shell shell.nix --run '
             cd test &&
@@ -185,11 +193,14 @@ jobs:
           '
 
       - name: Upload Terratest Results
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terratest-results-ci-${{ github.run_id }}
           path: test/terratest-results.txt
+      
+      - name: Stopping Workflow if Terratest failed 
+        if: steps.terratest.outcome == 'failure'
+        run: exit 1
 
       # ---------------------------------
       # 💬 PR Summary Comment

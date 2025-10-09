@@ -1,0 +1,9 @@
+aws_region        = "us-east-1"
+bucket_name       = "company-secure-tf-s3-bucket-12345"
+environment       = "dev"
+enable_versioning = true
+
+tags = {
+  Owner   = "DevOps Team"
+  Project = "IaC-Demo"
+}

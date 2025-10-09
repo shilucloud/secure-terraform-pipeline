@@ -22,7 +22,7 @@ jobs:
       TF_VAR_aws_region: ${{ secrets.TF_VAR_AWS_REGION }}
       TF_VAR_enable_versioning: ${{ secrets.TF_VAR_ENABLE_VERSIONING }}
       TF_VAR_env: ${{ secrets.TF_VAR_ENV }}
-      TF_VAR_aws_tags: ${{ secrets.TF_VAR_TAGS }}
+      TF_VAR_tags: ${{ secrets.TF_VAR_TAGS }}
       TF_VAR_localstack_enabled: true
       NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-25.05.tar.gz"
       
