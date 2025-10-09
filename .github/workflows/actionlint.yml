@@ -1,0 +1,38 @@
+name: Actionlint
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Run Actionlint
+      - name: Run actionlint
+        id: actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          matcher: false        # optional, disables GitHub annotations
+          cache: true           # enable caching for faster subsequent runs
+          fail-on-error: false  # do not fail automatically, we handle it manually
+          files: ".github/workflows/*.yml"  # scan all workflow files
+          flags: "-ignore SC2086"  # optional ignore rules
+
+      # Output Summary
+      - name: Actionlint Summary
+        if: ${{ steps.actionlint.outputs.exit-code != 0 }}
+        run: |
+          echo "Actionlint version: ${{ steps.actionlint.outputs.version-semver }} (${{
+            steps.actionlint.outputs.version-tag }})"
+          echo "Checked files: ${{ steps.actionlint.outputs.total-files }}"
+          echo "Total errors: ${{ steps.actionlint.outputs.total-errors }}"
+          echo "Exit code: ${{ steps.actionlint.outputs.exit-code }}"
+          echo "Exit message: ${{ steps.actionlint.outputs.exit-message }}"
+          echo "Cache hit: ${{ steps.actionlint.outputs.cache-hit }}"
+          exit ${{ steps.actionlint.outputs.exit-code }}

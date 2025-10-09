@@ -22,7 +22,7 @@ pkgs.mkShell {
     else if isDriftCtl then 
       [ pkgs.driftctl pkgs.terraform ]
     else if isCI then
-      [ pkgs.go pkgs.checkov pkgs.conftest pkgs.terraform pkgs.terraform-local pkgs.awscli2 ]
+      [ pkgs.go pkgs.checkov pkgs.conftest pkgs.terraform pkgs.terraform-local pkgs.awscli2 pkgs.tflint ]
     else
       [
         pkgs.git
@@ -35,6 +35,7 @@ pkgs.mkShell {
         pkgs.terraform-local
         pkgs.act
         pkgs.driftctl
+        pkgs.tflint
       ];
 
   shellHook = ''

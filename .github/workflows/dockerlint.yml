@@ -1,0 +1,34 @@
+name: Dockerfile Lint
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**/Dockerfile'
+      - '**/docker/**'
+  workflow_dispatch:
+
+jobs:
+  dockerlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Run Hadolint
+      - name: Run Hadolint
+        id: hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: '**/Dockerfile'   # lint all Dockerfiles
+          format: json                   # JSON output (for easier parsing)
+          ignore: DL3003,DL4000          # optional: ignore rules
+
+      # Output Summary
+      - name: Hadolint Summary
+        if: ${{ steps.hadolint.outputs.exitcode != 0 }}
+        run: |
+          echo "Hadolint exit code: ${{ steps.hadolint.outputs.exitcode }}"
+          echo "Hadolint warnings: ${{ steps.hadolint.outputs.warnings }}"
+          echo "Hadolint errors: ${{ steps.hadolint.outputs.errors }}"
+          echo "Hadolint scanned files: ${{ steps.hadolint.outputs.files }}"
+          exit ${{ steps.hadolint.outputs.exitcode }}

@@ -8,6 +8,10 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'infrastructure/**'
+      - 'policy/**'
+      - 'test/**'
 
 jobs:
   terraform_pipeline:
@@ -83,9 +87,13 @@ jobs:
       - name: Creating Backend Bucket 
         run: aws --endpoint-url=http://localhost:4566 s3 mb s3://localstack-terraform-state
 
-      # Terraform Lint
-      - name: Terraform Lint
+      # Terraform format
+      - name: Terraform Format
         run: nix-shell shell.nix --run "cd infrastructure && tflocal fmt -check -recursive"
+
+      # Terraform Lint 
+      - name: Terraform Init 
+        run: nix-shell shell.nix --run "cd infrastructure && tflint || true"
 
       # Terraform Init
       - name: Terraform Init (LocalStack)
