@@ -1,4 +1,4 @@
-FROM nixos/nix:2.32.3
+FROM nixos/nix:2.32.4
 
 WORKDIR /app
 COPY shell.nix .
