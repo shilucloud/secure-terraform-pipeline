@@ -109,7 +109,7 @@ jobs:
             infrastructure/tfplan.json
 
       - name: Manual Approval 
-        uses: trstringer/manual-approval@v1.11.0
+        uses: trstringer/manual-approval@v1.12.0
         with:
           approvers: 'shilucloud'
           minimum-approvals: 1
