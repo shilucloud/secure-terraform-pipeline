@@ -45,7 +45,7 @@ jobs:
       TF_VAR_tags: ${{ secrets.TF_VAR_TAGS }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # Setup Nix
       - name: Setup Nix
@@ -122,7 +122,7 @@ jobs:
       # Upload Terraform Plan artifacts
       - name: Upload Terraform Plan
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: terraform-plan-ci-${{ github.run_id }}
           path: |
@@ -153,7 +153,7 @@ jobs:
           "
 
       - name: Upload Checkov Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: checkov-report-ci-${{ github.run_id }}
           path: checkov-report.json
@@ -171,7 +171,7 @@ jobs:
           "
 
       - name: Upload Conftest Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: conftest-report-ci-${{ github.run_id }}
           path: conftest-report.json
@@ -193,7 +193,7 @@ jobs:
           '
 
       - name: Upload Terratest Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: terratest-results-ci-${{ github.run_id }}
           path: test/terratest-results.txt
