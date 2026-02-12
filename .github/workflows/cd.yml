@@ -28,21 +28,21 @@ jobs:
       
     steps:
       - name: Checkout 
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
         # Setup Nix
       - name: Setup Nix
         uses: cachix/install-nix-action@v31
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
           aws-region: us-east-1
 
       # 1. Nix cache
       - name: Cache Nix store & profile
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/nix
@@ -53,7 +53,7 @@ jobs:
 
       # 2. Terraform cache
       - name: Cache Terraform 
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.terraform.d/plugin-cache 
@@ -84,7 +84,7 @@ jobs:
           '
 
       - name: Upload Terraform Plan 
-        uses: actions/upload-artifact@v4 
+        uses: actions/upload-artifact@v6 
         with:
           name: terraform-plan-cd-${{ github.run_id }}
           path: |
