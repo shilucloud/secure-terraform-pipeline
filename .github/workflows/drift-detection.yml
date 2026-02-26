@@ -27,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4                          # fixed: v5 does not exist
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-full-access
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FULL_ACCESS }}
           aws-region: us-east-1
 
       - name: Setup Nix
@@ -90,7 +90,6 @@ jobs:
             infrastructure/drift-report.txt
             infrastructure/tfplan.json
 
-      # Open a GitHub issue when drift is detected so it's visible and actionable
       - name: Create GitHub Issue on Drift Detected
         if: steps.detect.outputs.drift_detected == 'true'
         uses: actions/github-script@v7
@@ -100,41 +99,42 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🚨 Terraform Drift Detected — ${new Date().toISOString().slice(0,10)}`,
+              title: `Terraform Drift Detected — ${new Date().toISOString().slice(0,10)}`,
               body: `## Terraform Drift Detected\n\n` +
                     `Real AWS infrastructure has drifted from the Terraform state.\n\n` +
                     `**Workflow Run:** [View Run](${runUrl})\n\n` +
-                    `**Artifacts:** Check the \`drift-report-${{ github.run_id }}\` artifact for the full plan output and JSON.\n\n` +
+                    `**Artifacts:** Check the drift-report artifact for the full plan output and JSON.\n\n` +
                     `**Next Steps:**\n` +
                     `- Review the drift report artifact\n` +
-                    `- Approve the auto-remediation job in the workflow run to apply a refresh-only plan\n` +
+                    `- Approve the auto-remediation job to recreate drifted resources\n` +
                     `- Or manually investigate and fix the drift\n\n` +
                     `> This issue was automatically created by the Scheduled Drift Detection workflow.`,
               labels: ['drift', 'infrastructure', 'automated']
             });
 
-      # Fail the job explicitly so drift is visible in the workflow status
       - name: Fail if Drift Detected
         if: steps.detect.outputs.drift_detected == 'true'
         run: |
-          echo "❌ Drift detected between Terraform state and real AWS infrastructure."
+          echo "Drift detected between Terraform state and real AWS infrastructure."
           echo "Review the drift-report artifact and approve remediation."
           exit 1
 
   auto_remediation:
     runs-on: ubuntu-latest
     needs: drift_check
-    # Only run remediation if drift was actually detected
-    if: needs.drift_check.outputs.drift_detected == 'true'
+    # always() is required because drift_check intentionally fails with exit 1
+    # when drift is detected. Without always(), GitHub Actions skips dependent
+    # jobs when the upstream job fails — even when that failure is intentional.
+    if: always() && needs.drift_check.outputs.drift_detected == 'true'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4                          # fixed: v5 does not exist
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::740527929108:role/github-oidc-for-secure-terraform-pipeline-s3-access
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_S3_ACCESS }}
           aws-region: us-east-1
 
       - name: Setup Nix
@@ -157,11 +157,12 @@ jobs:
             terraform init -reconfigure -backend-config=envs/aws.backend
           '
 
-      - name: Terraform Plan (refresh-only)
+      # Full plan — not refresh-only — so deleted/modified resources are actually recreated
+      - name: Terraform Plan
         run: |
           nix-shell shell.nix --run '
             cd infrastructure &&
-            terraform plan --refresh-only -out=tfplan | tee drift-remediation-plan.txt
+            terraform plan -out=tfplan | tee drift-remediation-plan.txt
           '
 
       - name: Terraform Plan JSON
@@ -188,7 +189,8 @@ jobs:
           issue-title: "Manual Approval Required: Terraform Drift Remediation"
           secret: ${{ secrets.PAT_TOKEN }}
 
-      - name: Terraform Apply (refresh-only)
+      # Full apply — recreates deleted resources, restores modified ones
+      - name: Terraform Apply
         run: |
           nix-shell shell.nix --run '
             cd infrastructure &&
@@ -210,7 +212,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: `✅ Drift has been remediated by workflow run [#${{ github.run_id }}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`
+                body: `Drift has been remediated by workflow run #${{ github.run_id }}.`
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,
@@ -219,4 +221,3 @@ jobs:
                 state: 'closed'
               });
             }
-

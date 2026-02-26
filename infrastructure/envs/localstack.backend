@@ -1,4 +1,4 @@
-bucket                     = "localstack-terraform-state"
+bucket         = ""
 key                        = "infra/dev/terraform.tfstate"
 region                     = "us-east-1"
 skip_credentials_validation = true
