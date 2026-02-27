@@ -11,20 +11,28 @@ tasks:
   download:
     desc: "Install Nix"
     cmds:
-      - echo "Installing Nix (if not installed)..."
-      - sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon || true
+      - |
+        echo "Installing Nix (if not installed)..."
+        sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon || true
 
   setup:
     desc: "Update backend configs with BUCKET_NAME and enter Nix shell"
     cmds:
-      - echo "Checking required environment variables..."
-      - test -n "$BUCKET_NAME" || (echo "❌ BUCKET_NAME is not set. Run: export BUCKET_NAME=company-your-bucket-name" && exit 1)
-      - test -n "$LOCALSTACK_AUTH_TOKEN" || (echo "❌ LOCALSTACK_AUTH_TOKEN is not set." && exit 1)
-      - echo "✅ Updating backend configs with bucket name..."
-      - sed -i "s/^bucket *= *.*/bucket         = \"${BUCKET_NAME}\"/" infrastructure/envs/aws.backend
-      - sed -i "s/^bucket *= *.*/bucket         = \"${BUCKET_NAME}\"/" infrastructure/envs/localstack.backend
-      - echo "✅ Entering Nix shell..."
-      - nix-shell
+      - |
+        echo "Checking required environment variables..."
+        if [ -z "$BUCKET_NAME" ]; then
+          echo "BUCKET_NAME is not set. Run: export BUCKET_NAME=company-your-bucket-name"
+          exit 1
+        fi
+        if [ -z "$LOCALSTACK_AUTH_TOKEN" ]; then
+          echo "LOCALSTACK_AUTH_TOKEN is not set."
+          exit 1
+        fi
+        echo "Updating backend configs with bucket name: $BUCKET_NAME"
+        sed -i "s/^bucket *= *.*/bucket         = \"$BUCKET_NAME\"/" infrastructure/envs/aws.backend
+        sed -i "s/^bucket *= *.*/bucket         = \"$BUCKET_NAME\"/" infrastructure/envs/localstack.backend
+        echo "Backend configs updated. Entering Nix shell..."
+        nix-shell
 
   # -------------------
   # LocalStack Tasks
@@ -32,18 +40,22 @@ tasks:
   localstack-up:
     desc: "Start LocalStack Pro for local testing"
     cmds:
-      - echo "🚀 Starting LocalStack Pro..."
-      - docker compose -f localstack/localstack-compose.yml up -d
-      - echo "⏳ Waiting for LocalStack to be ready..."
-      - until curl -s http://localhost:4566/_localstack/health | grep -q '"s3"'; do sleep 2; done
-      - echo "✅ LocalStack is ready at http://localhost:4566"
+      - |
+        echo "Starting LocalStack Pro..."
+        docker compose -f localstack/localstack-compose.yml up -d
+        echo "Waiting for LocalStack to be ready..."
+        until curl -s http://localhost:4566/_localstack/health | grep -q '"s3"'; do
+          sleep 2
+        done
+        echo "LocalStack is ready at http://localhost:4566"
 
   localstack-down:
     desc: "Stop LocalStack"
     cmds:
-      - echo "🛑 Stopping LocalStack..."
-      - docker compose -f localstack/localstack-compose.yml down
-      - echo "✅ LocalStack stopped"
+      - |
+        echo "Stopping LocalStack..."
+        docker compose -f localstack/localstack-compose.yml down
+        echo "LocalStack stopped"
 
   # -------------------
   # TFLocal Tasks (LocalStack)
@@ -51,28 +63,32 @@ tasks:
   tflocal-init:
     desc: "Initialize Terraform using LocalStack backend"
     cmds:
-      - echo "🔧 Creating LocalStack state bucket if it doesn't exist..."
-      - aws --endpoint-url=http://localhost:4566 s3 mb s3://localstack-terraform-state || true
-      - echo "🔧 Initializing Terraform with LocalStack backend..."
-      - cd infrastructure && tflocal init -reconfigure -backend-config=envs/localstack.backend
+      - |
+        echo "Creating LocalStack state bucket if it does not exist..."
+        aws --endpoint-url=http://localhost:4566 s3 mb s3://localstack-terraform-state || true
+        echo "Initializing Terraform with LocalStack backend..."
+        cd infrastructure && tflocal init -reconfigure -backend-config=envs/localstack.backend
 
   tflocal-plan:
     desc: "Plan Terraform using LocalStack"
     cmds:
-      - echo "📋 Running Terraform plan against LocalStack..."
-      - cd infrastructure && tflocal plan
+      - |
+        echo "Running Terraform plan against LocalStack..."
+        cd infrastructure && tflocal plan
 
   tflocal-apply:
     desc: "Apply Terraform using LocalStack"
     cmds:
-      - echo "🧱 Applying Terraform against LocalStack..."
-      - cd infrastructure && tflocal apply -auto-approve
+      - |
+        echo "Applying Terraform against LocalStack..."
+        cd infrastructure && tflocal apply -auto-approve
 
   tflocal-destroy:
     desc: "Destroy Terraform resources in LocalStack"
     cmds:
-      - echo "🗑 Destroying Terraform resources in LocalStack..."
-      - cd infrastructure && tflocal destroy -auto-approve
+      - |
+        echo "Destroying Terraform resources in LocalStack..."
+        cd infrastructure && tflocal destroy -auto-approve
 
   # -------------------
   # Security & Policy Checks
@@ -80,31 +96,34 @@ tasks:
   checkov:
     desc: "Run Checkov security scan against Terraform plan"
     cmds:
-      - echo "🛡 Generating Terraform plan JSON for Checkov..."
-      - cd infrastructure && tflocal plan -out=tfplan && tflocal show -json tfplan > tfplan.json
-      - echo "🛡 Running Checkov..."
-      - checkov -f infrastructure/tfplan.json --hard-fail-on=HIGH,CRITICAL -o json > checkov-report.json
-      - echo "✅ Checkov report saved to checkov-report.json"
+      - |
+        echo "Generating Terraform plan JSON for Checkov..."
+        cd infrastructure && tflocal plan -out=tfplan && tflocal show -json tfplan > tfplan.json
+        echo "Running Checkov..."
+        checkov -f infrastructure/tfplan.json --hard-fail-on=HIGH,CRITICAL -o json > checkov-report.json
+        echo "Checkov report saved to checkov-report.json"
 
   conftest:
     desc: "Run Conftest OPA policy checks against Terraform plan"
     cmds:
-      - echo "📋 Generating Terraform plan JSON for Conftest..."
-      - cd infrastructure && tflocal plan -out=tfplan && tflocal show -json tfplan > tfplan.json
-      - echo "📋 Running Conftest policies..."
-      - conftest test infrastructure/tfplan.json --output=json
-      - echo "✅ All policies passed"
+      - |
+        echo "Generating Terraform plan JSON for Conftest..."
+        cd infrastructure && tflocal plan -out=tfplan && tflocal show -json tfplan > tfplan.json
+        echo "Running Conftest policies..."
+        conftest test infrastructure/tfplan.json --output=json
+        echo "All policies passed"
 
   scan:
     desc: "Run all security scans (Checkov + Conftest)"
     cmds:
-      - echo "🔒 Generating Terraform plan JSON..."
-      - cd infrastructure && tflocal plan -out=tfplan && tflocal show -json tfplan > tfplan.json
-      - echo "🛡 Running Checkov..."
-      - checkov -f infrastructure/tfplan.json --hard-fail-on=HIGH,CRITICAL -o json > checkov-report.json
-      - echo "📋 Running Conftest..."
-      - conftest test infrastructure/tfplan.json --output=json
-      - echo "✅ All security scans passed"
+      - |
+        echo "Generating Terraform plan JSON..."
+        cd infrastructure && tflocal plan -out=tfplan && tflocal show -json tfplan > tfplan.json
+        echo "Running Checkov..."
+        checkov -f infrastructure/tfplan.json --hard-fail-on=HIGH,CRITICAL -o json > checkov-report.json
+        echo "Running Conftest..."
+        conftest test infrastructure/tfplan.json --output=json
+        echo "All security scans passed"
 
   # -------------------
   # Testing
@@ -112,21 +131,24 @@ tasks:
   test:
     desc: "Run all Terratest integration tests against LocalStack"
     cmds:
-      - echo "🧪 Running Terratest..."
-      - cd test && go test ./ -v -timeout 30m
-      - echo "✅ All tests passed"
+      - |
+        echo "Running Terratest..."
+        cd test && go test ./ -v -timeout 30m
+        echo "All tests passed"
 
   test-s3:
     desc: "Run only the S3 bucket unit test"
     cmds:
-      - echo "🧪 Running S3 bucket test..."
-      - cd test && go test ./ -v -run TestS3Bucket -timeout 30m
+      - |
+        echo "Running S3 bucket test..."
+        cd test && go test ./ -v -run TestS3Bucket -timeout 30m
 
   test-e2e:
     desc: "Run only the E2E test (upload and read file)"
     cmds:
-      - echo "🧪 Running E2E test..."
-      - cd test && go test ./ -v -run TestE2E -timeout 30m
+      - |
+        echo "Running E2E test..."
+        cd test && go test ./ -v -run TestE2E -timeout 30m
 
   # -------------------
   # GitHub Actions via act
@@ -134,8 +156,9 @@ tasks:
   act-show:
     desc: "Show all available workflows and jobs"
     cmds:
-      - echo "Listing all workflows..."
-      - act --list
+      - |
+        echo "Listing all workflows..."
+        act --list
 
   act-lint:
     desc: "Run actionlint workflow locally"
@@ -176,16 +199,16 @@ tasks:
   # Composite Tasks
   # -------------------
   dev-local:
-    desc: "Prepare local development environment (setup → LocalStack → init)"
+    desc: "Prepare local development environment (setup -> LocalStack -> init)"
     cmds:
       - task: download
       - task: setup
       - task: localstack-up
       - task: tflocal-init
-      - echo "✅ Local dev environment ready. Run 'task tflocal-apply' to deploy."
+      - echo "Local dev environment ready. Run 'task tflocal-apply' to deploy."
 
   all-local:
-    desc: "Full local workflow: setup → LocalStack → deploy → scan → test"
+    desc: "Full local workflow: setup -> LocalStack -> deploy -> scan -> test"
     cmds:
       - task: download
       - task: setup
@@ -194,7 +217,7 @@ tasks:
       - task: tflocal-apply
       - task: scan
       - task: test
-      - echo "🎉 Full local pipeline completed successfully!"
+      - echo "Full local pipeline completed successfully!"
 
   ci-local:
     desc: "Simulate the full CI pipeline locally using act"
